@@ -2,6 +2,7 @@ import "package:fl_chart/fl_chart.dart";
 import "package:flutter/material.dart";
 
 import "../../core/network/api_client.dart";
+import "../../core/theme/app_theme.dart";
 import "../ai/openai_assistant_service.dart";
 import "../../shared/models/project_models.dart";
 
@@ -72,7 +73,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       future: _bootstrap,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: AppTheme.primary),
+            ),
+          );
         }
         if (snapshot.hasError) {
           return Scaffold(
@@ -80,9 +85,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text("Failed to load data: ${snapshot.error}"),
-                  const SizedBox(height: 12),
-                  FilledButton(onPressed: _refresh, child: const Text("Retry")),
+                  Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Failed to load data",
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "${snapshot.error}",
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Retry"),
+                  ),
                 ],
               ),
             ),
@@ -93,13 +113,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
           length: 2,
           child: Scaffold(
             appBar: AppBar(
-              title: Text(data.state.project.name),
-              actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh))],
-              bottom: const TabBar(
-                isScrollable: true,
-                tabs: [
-                  Tab(text: "Overview"),
-                  Tab(text: "AI Assistant"),
+              title: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppTheme.lightTeal,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.description,
+                      color: AppTheme.primary,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "InfraMind",
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                        Text(
+                          "ENTERPRISE",
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.white.withOpacity(0.6),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        "ACTIVE",
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: AppTheme.primary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: "Refresh",
+                ),
+              ],
+              bottom: TabBar(
+                isScrollable: false,
+                indicatorColor: AppTheme.primary,
+                labelColor: AppTheme.primary,
+                unselectedLabelColor: Colors.white.withOpacity(0.6),
+                tabs: const [
+                  Tab(text: "DASHBOARD"),
+                  Tab(text: "AI ASSISTANT"),
                 ],
               ),
             ),
@@ -134,112 +232,386 @@ class _OverviewTab extends StatelessWidget {
     final stats = data.dashboard;
     return RefreshIndicator(
       onRefresh: () async {},
+      color: AppTheme.primary,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Project Header Card - Dark Theme
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF3E63DD), Color(0xFF7B61FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              borderRadius: BorderRadius.circular(28),
+              color: AppTheme.darkBackground,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  project.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.folder_special_rounded,
+                        color: AppTheme.primary,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.name,
+                            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "DELIVERY WORKSPACE",
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: AppTheme.primary,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 Text(
                   project.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFA0C4C2),
+                      ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          
+          // Stats Grid
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _KpiCard(label: "Progress", value: "${stats.overallProgress}%"),
-              _KpiCard(label: "Completed", value: "${stats.tasksCompleted}/${stats.totalTasks}"),
-              _KpiCard(label: "In Progress", value: "${stats.inProgress}"),
-              _KpiCard(label: "At Risk", value: "${stats.criticalTasks}"),
-              _KpiCard(label: "Overdue", value: "${stats.overdueTasks}"),
-              _KpiCard(label: "Resource Utilization", value: "${stats.resourceUtilization}%"),
+              _KpiCard(
+                label: "OVERALL PROGRESS",
+                value: "${stats.overallProgress}%",
+                icon: Icons.trending_up_rounded,
+                trend: "${data.state.documents.length} docs",
+                isPositive: true,
+              ),
+              _KpiCard(
+                label: "TASKS COMPLETED",
+                value: "${stats.tasksCompleted}/${stats.totalTasks}",
+                icon: Icons.check_circle_rounded,
+                trend: "${stats.inProgress} active",
+                isPositive: true,
+              ),
+              _KpiCard(
+                label: "RESOURCE LOAD",
+                value: "${stats.resourceUtilization}%",
+                icon: Icons.people_rounded,
+                trend: "${data.state.resources.length} resources",
+                isPositive: true,
+              ),
+              _KpiCard(
+                label: "OVERDUE TASKS",
+                value: "${stats.overdueTasks}",
+                icon: Icons.warning_rounded,
+                trend: "${stats.criticalTasks} critical",
+                isPositive: stats.overdueTasks == 0,
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 220,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                    sections: [
-                      PieChartSectionData(
-                        value: stats.tasksCompleted.toDouble(),
-                        title: "Done",
-                        radius: 40,
+          const SizedBox(height: 20),
+          
+          // Charts Section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightTeal,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.pie_chart_rounded,
+                          color: AppTheme.primary,
+                          size: 20,
+                        ),
                       ),
-                      PieChartSectionData(
-                        value: stats.inProgress.toDouble(),
-                        title: "In-Flight",
-                        radius: 40,
-                      ),
-                      PieChartSectionData(
-                        value: (stats.totalTasks - stats.tasksCompleted - stats.inProgress)
-                            .clamp(0, 9999)
-                            .toDouble(),
-                        title: "Pending",
-                        radius: 40,
+                      const SizedBox(width: 12),
+                      Text(
+                        "Task Distribution",
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 200,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 3,
+                        centerSpaceRadius: 50,
+                        sections: [
+                          PieChartSectionData(
+                            value: stats.tasksCompleted.toDouble(),
+                            title: "${stats.tasksCompleted}",
+                            color: AppTheme.statusCompleted,
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          PieChartSectionData(
+                            value: stats.inProgress.toDouble(),
+                            title: "${stats.inProgress}",
+                            color: AppTheme.statusInProgress,
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          PieChartSectionData(
+                            value: (stats.totalTasks - stats.tasksCompleted - stats.inProgress)
+                                .clamp(0, 9999)
+                                .toDouble(),
+                            title: "${stats.totalTasks - stats.tasksCompleted - stats.inProgress}",
+                            color: AppTheme.statusNotStarted,
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _LegendItem(
+                        color: AppTheme.statusCompleted,
+                        label: "Completed",
+                      ),
+                      _LegendItem(
+                        color: AppTheme.statusInProgress,
+                        label: "In Progress",
+                      ),
+                      _LegendItem(
+                        color: AppTheme.statusNotStarted,
+                        label: "Pending",
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 220,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: BarChart(
-                  BarChartData(
-                    titlesData: FlTitlesData(
-                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true)),
-                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (value, _) {
-                            const labels = ["Done", "In", "Risk", "Overdue"];
-                            return Text(labels[value.toInt()]);
-                          },
+          const SizedBox(height: 16),
+          
+          // Bar Chart
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightTeal,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.bar_chart_rounded,
+                          color: AppTheme.primary,
+                          size: 20,
                         ),
                       ),
-                    ),
-                    barGroups: [
-                      BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: stats.tasksCompleted.toDouble())]),
-                      BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: stats.inProgress.toDouble())]),
-                      BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: stats.criticalTasks.toDouble())]),
-                      BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: stats.overdueTasks.toDouble())]),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Project Metrics",
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 200,
+                    child: BarChart(
+                      BarChartData(
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: 5,
+                          getDrawingHorizontalLine: (value) {
+                            return FlLine(
+                              color: AppTheme.borderColor,
+                              strokeWidth: 1,
+                            );
+                          },
+                        ),
+                        titlesData: FlTitlesData(
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                              getTitlesWidget: (value, _) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                );
+                              },
+                            ),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, _) {
+                                const labels = ["Done", "Active", "Risk", "Late"];
+                                if (value.toInt() >= 0 && value.toInt() < labels.length) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      labels[value.toInt()],
+                                      style: Theme.of(context).textTheme.labelMedium,
+                                    ),
+                                  );
+                                }
+                                return const SizedBox();
+                              },
+                            ),
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: [
+                          BarChartGroupData(
+                            x: 0,
+                            barRods: [
+                              BarChartRodData(
+                                toY: stats.tasksCompleted.toDouble(),
+                                color: AppTheme.statusCompleted,
+                                width: 32,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(8),
+                                ),
+                              ),
+                            ],
+                          ),
+                          BarChartGroupData(
+                            x: 1,
+                            barRods: [
+                              BarChartRodData(
+                                toY: stats.inProgress.toDouble(),
+                                color: AppTheme.statusInProgress,
+                                width: 32,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(8),
+                                ),
+                              ),
+                            ],
+                          ),
+                          BarChartGroupData(
+                            x: 2,
+                            barRods: [
+                              BarChartRodData(
+                                toY: stats.criticalTasks.toDouble(),
+                                color: AppTheme.statusAtRisk,
+                                width: 32,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(8),
+                                ),
+                              ),
+                            ],
+                          ),
+                          BarChartGroupData(
+                            x: 3,
+                            barRods: [
+                              BarChartRodData(
+                                toY: stats.overdueTasks.toDouble(),
+                                color: AppTheme.statusOverdue,
+                                width: 32,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // CTA Footer
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              color: AppTheme.darkBackground,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: AppTheme.primary,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      "AI-Powered Insights",
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Ask AI to parse PDFs, regenerate WBS, or identify critical path delays in seconds.",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFA0C4C2),
+                      ),
+                ),
+              ],
             ),
           ),
         ],
@@ -251,26 +623,137 @@ class _OverviewTab extends StatelessWidget {
 class _KpiCard extends StatelessWidget {
   final String label;
   final String value;
+  final IconData icon;
+  final String trend;
+  final bool isPositive;
 
-  const _KpiCard({required this.label, required this.value});
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.trend,
+    required this.isPositive,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 170,
+      width: (MediaQuery.of(context).size.width - 44) / 2,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 8),
-              Text(value, style: Theme.of(context).textTheme.titleLarge),
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: AppTheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: Theme.of(context).textTheme.labelMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isPositive
+                            ? AppTheme.success.withOpacity(0.1)
+                            : AppTheme.error.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isPositive
+                                ? Icons.trending_up_rounded
+                                : Icons.trending_down_rounded,
+                            size: 12,
+                            color: isPositive ? AppTheme.success : AppTheme.error,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              trend,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    color: isPositive
+                                        ? AppTheme.success
+                                        : AppTheme.error,
+                                    fontSize: 9,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendItem({
+    required this.color,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontSize: 10,
+              ),
+        ),
+      ],
     );
   }
 }
@@ -296,113 +779,349 @@ class _AiTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF4F46E5), Color(0xFF9333EA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+    return Column(
+      children: [
+        // Header Section
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: AppTheme.darkBackground,
+            border: Border(
+              bottom: BorderSide(
+                color: AppTheme.borderColor,
+                width: 1,
               ),
             ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.smart_toy_rounded,
+                  color: AppTheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "InfraMind Logic Engine",
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: AppTheme.primary,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "CONTEXT-AWARE ANALYSIS",
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: const Color(0xFFA0C4C2),
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Main Content
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Ask Project AI",
-                  style: theme.textTheme.titleLarge?.copyWith(color: Colors.white),
+                if (!openAiConfigured)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.error.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppTheme.error.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_rounded,
+                          color: AppTheme.error,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            "OPENAI_API_KEY not configured",
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                // Quick Actions
+                if (conversation.isEmpty) ...[
+                  Text(
+                    "QUICK ANALYSIS",
+                    style: theme.textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _QuickActionChip(
+                        icon: Icons.health_and_safety_rounded,
+                        label: "Project Status",
+                        onTap: () => controller.text = "What is the current status of the project?",
+                      ),
+                      _QuickActionChip(
+                        icon: Icons.warning_rounded,
+                        label: "Top Risks",
+                        onTap: () => controller.text = "Identify the top risks and suggest mitigations.",
+                      ),
+                      _QuickActionChip(
+                        icon: Icons.check_circle_rounded,
+                        label: "Progress Report",
+                        onTap: () => controller.text = "Show me the progress of all ongoing tasks.",
+                      ),
+                      _QuickActionChip(
+                        icon: Icons.bolt_rounded,
+                        label: "Optimization",
+                        onTap: () => controller.text = "How can we optimize resource allocation?",
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                
+                // Chat Messages
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppTheme.borderColorDark,
+                      ),
+                    ),
+                    child: conversation.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.lightTeal,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.chat_bubble_outline_rounded,
+                                    size: 48,
+                                    color: AppTheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  "Start a Conversation",
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                                  child: Text(
+                                    "Ask about project status, risks, blockers, or resource allocation.",
+                                    style: theme.textTheme.bodySmall,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: conversation.length,
+                            itemBuilder: (context, index) {
+                              final msg = conversation[index];
+                              return _ChatBubble(message: msg);
+                            },
+                          ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  "Beautiful, grounded responses with rolling conversation memory (last 10 turns).",
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                const SizedBox(height: 16),
+                
+                // Input Section
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppTheme.borderColorDark,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 15,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          maxLines: null,
+                          decoration: InputDecoration(
+                            hintText: "Query project state, risks, or artifacts...",
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.textTertiary,
+                            ),
+                          ),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        child: FilledButton(
+                          onPressed: asking ? null : onAsk,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.all(12),
+                            minimumSize: const Size(48, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: asking
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (chatError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      chatError!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppTheme.error,
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Center(
+                    child: Text(
+                      "AI ANALYSIS IS BASED ON EXTRACTED DOCUMENT CONTEXT",
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: 9,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          if (!openAiConfigured)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 10),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                "OPENAI_API_KEY is not configured. Run with --dart-define=OPENAI_API_KEY=your_key",
-              ),
-            ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ActionChip(
-                label: const Text("Project health overview"),
-                onPressed: () => controller.text = "What is project health right now?",
-              ),
-              ActionChip(
-                label: const Text("Which tasks are pending?"),
-                onPressed: () => controller.text = "Which tasks are pending and why?",
-              ),
-              ActionChip(
-                label: const Text("What are blockers?"),
-                onPressed: () => controller.text = "Which tasks are blockers right now and suggested mitigation?",
-              ),
-            ],
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.lightTeal,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.lightTealBorder,
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: "Ask the project AI assistant...",
-              border: OutlineInputBorder(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: AppTheme.primary,
             ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: asking ? null : onAsk,
-              icon: const Icon(Icons.smart_toy_outlined),
-              label: Text(asking ? "Thinking..." : "Ask AI"),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontSize: 11,
+                  ),
             ),
-          ),
-          const SizedBox(height: 12),
-          if (chatError != null)
-            Text(chatError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: conversation.isEmpty
-                  ? const Center(
-                      child: Text("Start chatting: ask about pending tasks, blockers, or project health."),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: conversation.length,
-                      itemBuilder: (context, index) {
-                        final msg = conversation[index];
-                        return _ChatBubble(message: msg);
-                      },
-                    ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -419,18 +1138,57 @@ class _ChatBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        constraints: const BoxConstraints(maxWidth: 360),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: isUser
-              ? const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF6366F1)])
-              : const LinearGradient(colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)]),
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.8,
         ),
-        child: _PrettyText(
-          text: message.content,
-          color: isUser ? Colors.white : const Color(0xFF111827),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: isUser ? AppTheme.darkBackground : AppTheme.lightTeal,
+          border: isUser
+              ? null
+              : Border.all(
+                  color: AppTheme.lightTealBorder,
+                ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _PrettyText(
+              text: message.content,
+              color: isUser ? Colors.white : AppTheme.textPrimary,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateTime.now().toString().substring(11, 16),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: isUser
+                            ? Colors.white.withOpacity(0.6)
+                            : AppTheme.textTertiary,
+                        fontSize: 9,
+                      ),
+                ),
+                if (!isUser) ...[
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.volume_up_rounded,
+                    size: 12,
+                    color: AppTheme.textTertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.content_copy_rounded,
+                    size: 12,
+                    color: AppTheme.textTertiary,
+                  ),
+                ],
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -451,10 +1209,14 @@ class _PrettyText extends StatelessWidget {
       children: lines
           .map(
             (line) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: 6),
               child: Text(
                 line.replaceFirst(RegExp(r"^[-*]\s*"), "• "),
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color, height: 1.4),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: color,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
             ),
           )

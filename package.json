@@ -53,6 +53,7 @@
     "dotenv": "^17.4.2",
     "embla-carousel-react": "^8.5.2",
     "express": "^5.2.1",
+    "framer-motion": "^12.38.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.364.0",
     "mammoth": "^1.12.0",

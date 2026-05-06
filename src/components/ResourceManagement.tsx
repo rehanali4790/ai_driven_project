@@ -7,7 +7,9 @@ import {
   Briefcase,
   TrendingUp,
   DollarSign,
-  Download
+  Download,
+  Target,
+  ArrowRight
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 
@@ -53,10 +55,10 @@ export default function ResourceManagement() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return 'bg-green-100 text-green-700';
-      case 'allocated': return 'bg-blue-100 text-blue-700';
-      case 'on_leave': return 'bg-amber-100 text-amber-700';
-      default: return 'bg-gray-100 text-gray-700';
+      case 'available': return 'bg-[#f0f9f8] text-[#12b3a8]';
+      case 'allocated': return 'bg-blue-50 text-blue-600';
+      case 'on_leave': return 'bg-amber-50 text-amber-600';
+      default: return 'bg-gray-50 text-gray-500';
     }
   };
 
@@ -68,337 +70,253 @@ export default function ResourceManagement() {
   if (!state) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 p-1">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Resource Management</h1>
-          <p className="text-gray-500">Manage team members, equipment, and allocations</p>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Resource Management</h1>
+          <p className="text-gray-500 text-sm mt-1 font-medium">Coordinate project personnel, assets, and organizational capacity</p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+        <div className="flex flex-wrap gap-3">
+          <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2">
             <Download className="w-4 h-4" />
-            Export Report
+            Export
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 bg-[#12b3a8] text-white text-xs font-bold uppercase tracking-[1.5px] rounded-xl hover:bg-[#0e9188] transition-all shadow-sm flex items-center gap-2 active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            {showForm ? 'Close Form' : 'Add Resource'}
+            {showForm ? 'Close Editor' : 'Register Resource'}
           </button>
         </div>
       </div>
 
+      {/* Admin Form - Reference Style */}
       {showForm && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Admin / Stakeholder Resource Update</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <input
-              value={resourceDraft.name}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, name: e.target.value })}
-              placeholder="Resource name"
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <input
-              value={resourceDraft.role}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, role: e.target.value })}
-              placeholder="Role"
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <select
-              value={resourceDraft.type}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, type: e.target.value as 'person' | 'equipment' | 'material' })}
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            >
-              <option value="person">Person</option>
-              <option value="equipment">Equipment</option>
-              <option value="material">Material</option>
-            </select>
-            <select
-              value={resourceDraft.scope}
-              onChange={(e) =>
-                setResourceDraft({
-                  ...resourceDraft,
-                  scope: e.target.value as 'global' | 'project',
-                })
-              }
-              disabled={!canOrgResources && resourceDraft.scope !== 'project'}
-              className="px-3 py-2 border border-gray-200 rounded-lg disabled:opacity-50"
-              title="Org-wide resources require administrator role"
-            >
-              <option value="project">This project</option>
-              <option value="global">Organization (global)</option>
-            </select>
-            <input
-              type="number"
-              value={resourceDraft.allocated}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, allocated: Number(e.target.value) })}
-              placeholder="Allocated %"
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <input
-              type="number"
-              value={resourceDraft.costRate}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, costRate: Number(e.target.value) })}
-              placeholder="Cost rate per hour"
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <input
-              value={resourceDraft.email}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, email: e.target.value })}
-              placeholder="Email"
-              className="px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <input
-              value={resourceDraft.skills}
-              onChange={(e) => setResourceDraft({ ...resourceDraft, skills: e.target.value })}
-              placeholder="Skills comma separated"
-              className="md:col-span-2 px-3 py-2 border border-gray-200 rounded-lg"
-            />
-            <button
-              onClick={async () => {
-                await upsertResource({
-                  ...resourceDraft,
-                  rateBasis: resourceDraft.rateBasis,
-                  scope: resourceDraft.scope,
-                  skills: resourceDraft.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
-                });
-                setResourceDraft({
-                  name: '',
-                  role: '',
-                  type: 'person',
-                  allocated: 0,
-                  capacity: 100,
-                  status: 'available',
-                  costRate: 0,
-                  rateBasis: 'hour',
-                  scope: 'project',
-                  skills: '',
-                  email: '',
-                });
-                setShowForm(false);
-              }}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg"
-            >
-              Save Resource Update
-            </button>
+        <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 p-8">
+          <h3 className="text-sm font-bold text-[#0f3433] uppercase tracking-widest mb-6 flex items-center gap-2">
+            <Target className="w-4 h-4 text-[#12b3a8]" />
+            Entity Configuration
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="flex flex-col gap-1.5">
+               <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Entity Name</label>
+               <input
+                value={resourceDraft.name}
+                onChange={(e) => setResourceDraft({ ...resourceDraft, name: e.target.value })}
+                placeholder="Full name / ID"
+                className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+               <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Designation</label>
+               <input
+                value={resourceDraft.role}
+                onChange={(e) => setResourceDraft({ ...resourceDraft, role: e.target.value })}
+                placeholder="Role / Scope"
+                className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+               <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Type</label>
+               <select
+                value={resourceDraft.type}
+                onChange={(e) => setResourceDraft({ ...resourceDraft, type: e.target.value as 'person' | 'equipment' | 'material' })}
+                className="bg-gray-50 border-none rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none appearance-none"
+              >
+                <option value="person">Human Resource</option>
+                <option value="equipment">Asset / Equipment</option>
+                <option value="material">Material Supply</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+               <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Deployment Scope</label>
+               <select
+                value={resourceDraft.scope}
+                onChange={(e) => setResourceDraft({ ...resourceDraft, scope: e.target.value as 'global' | 'project' })}
+                disabled={!canOrgResources && resourceDraft.scope !== 'project'}
+                className="bg-gray-50 border-none rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none disabled:opacity-50 appearance-none"
+              >
+                <option value="project">Project Bound</option>
+                <option value="global">Organization Wide</option>
+              </select>
+            </div>
+            
+            <div className="lg:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-5 mt-2">
+              <input type="number" value={resourceDraft.allocated} onChange={(e) => setResourceDraft({...resourceDraft, allocated: Number(e.target.value)})} placeholder="Initial Load %" className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm" />
+              <input type="number" value={resourceDraft.costRate} onChange={(e) => setResourceDraft({...resourceDraft, costRate: Number(e.target.value)})} placeholder="Rate / Basis" className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm" />
+              <input value={resourceDraft.email} onChange={(e) => setResourceDraft({...resourceDraft, email: e.target.value})} placeholder="Contact Email" className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm" />
+              <button
+                onClick={async () => {
+                  await upsertResource({
+                    ...resourceDraft,
+                    skills: resourceDraft.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+                  });
+                  setResourceDraft({ name: '', role: '', type: 'person', allocated: 0, capacity: 100, status: 'available', costRate: 0, rateBasis: 'hour', scope: 'project', skills: '', email: '' });
+                  setShowForm(false);
+                }}
+                className="bg-[#0f3433] hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl py-3 transition-all active:scale-95 shadow-lg"
+              >
+                Sync Resource
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{resources.length}</p>
-              <p className="text-sm text-gray-500">Total Resources</p>
-            </div>
+      {/* Snapshot Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Network Size', val: resources.length, icon: Users, color: 'text-[#12b3a8]' },
+          { label: 'Load Factor', val: `${avgUtilization.toFixed(0)}%`, icon: TrendingUp, color: 'text-emerald-500' },
+          { label: 'Burn Rate', val: `PKR ${(totalCost / 1000).toFixed(0)}K`, icon: DollarSign, color: 'text-[#0f3433]' },
+          { label: 'Assignments', val: allocations.length, icon: Briefcase, color: 'text-amber-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]">
+             <div className="flex items-center gap-4">
+                <div className="p-3 bg-gray-50 rounded-xl">
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div>
+                   <p className="text-2xl font-bold text-[#0f3433] leading-none mb-1">{stat.val}</p>
+                   <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                </div>
+             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{avgUtilization.toFixed(0)}%</p>
-              <p className="text-sm text-gray-500">Avg Utilization</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <DollarSign className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-gray-900">PKR {(totalCost / 1000).toFixed(0)}K</p>
-              <p className="text-sm text-gray-500">Daily Cost</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-amber-100 rounded-xl">
-              <Briefcase className="w-6 h-6 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-3xl font-bold text-gray-900">{allocations.length}</p>
-              <p className="text-sm text-gray-500">Active Allocations</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                {(['all', 'people', 'equipment'] as const).map((tab) => (
+      {/* Resource Table Explorer */}
+      <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        {/* Toolbar */}
+        <div className="p-5 border-b border-gray-50 flex flex-wrap items-center justify-between gap-6">
+          <div className="flex flex-wrap items-center gap-3">
+             <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                {([['all', 'All'], ['people', 'People'], ['equipment', 'Assets']] as const).map(([id, label]) => (
                   <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                      activeTab === tab
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
+                    key={id}
+                    onClick={() => setActiveTab(id)}
+                    className={`px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-widest rounded-lg transition-all ${
+                      activeTab === id ? 'bg-white text-[#12b3a8] shadow-sm' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
-                    {tab === 'all' ? 'All Resources' : tab === 'people' ? 'People' : 'Equipment'}
+                    {label}
                   </button>
                 ))}
-              </div>
-              <div className="flex bg-slate-100 rounded-lg p-1">
+             </div>
+             
+             <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
                 {(['all', 'global', 'project'] as const).map((tab) => (
                   <button
                     key={tab}
-                    type="button"
                     onClick={() => setScopeTab(tab)}
-                    className={`px-3 py-2 text-xs font-medium rounded-md transition-colors ${
-                      scopeTab === tab
-                        ? 'bg-white text-slate-800 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
+                    className={`px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-widest rounded-lg transition-all ${
+                      scopeTab === tab ? 'bg-white text-[#0f3433] shadow-sm' : 'text-gray-400'
                     }`}
                   >
-                    {tab === 'all' ? 'All scopes' : tab === 'global' ? 'Organization' : 'This project'}
+                    {tab}
                   </button>
                 ))}
-              </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search resources..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+             </div>
+          </div>
+
+          <div className="flex items-center gap-4 flex-1 max-w-md">
+            <div className="relative group w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#12b3a8]" />
+              <input
+                type="text"
+                placeholder="Find entity..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl w-full text-sm font-medium focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
+              />
             </div>
-            <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <Filter className="w-4 h-4" />
-              More Filters
+            <button className="p-2.5 bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-colors">
+               <Filter className="w-5 h-5" />
             </button>
           </div>
         </div>
 
+        {/* Table Body */}
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Resource</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role / Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Utilization</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cost Rate</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Skills</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Entity Identification</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Classification</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Sync Status</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Load Pattern</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Cost Basis</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-right">Reference</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-50">
               {filteredResources.map((resource) => (
-                <tr key={resource.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
+                <tr key={resource.id} className="hover:bg-gray-50/80 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-4">
                       {resource.type === 'person' ? (
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                          {resource.name.split(' ').map(n => n[0]).join('')}
+                        <div className="w-10 h-10 bg-[#0f3433] rounded-xl flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
+                          {resource.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </div>
                       ) : (
-                        <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                          <Briefcase className="w-5 h-5 text-gray-500" />
+                        <div className="w-10 h-10 bg-[#f0f9f8] rounded-xl flex items-center justify-center">
+                          <Briefcase className="w-5 h-5 text-[#12b3a8]" />
                         </div>
                       )}
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 flex items-center gap-2 flex-wrap">
-                          {resource.name}
-                          <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                            {resource.scope === 'global' ? 'Org' : 'Project'}
-                          </span>
-                        </p>
-                        {resource.email && <p className="text-xs text-gray-500">{resource.email}</p>}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                           <p className="text-sm font-bold text-[#0f3433] truncate">{resource.name}</p>
+                           <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-400 tracking-tighter">
+                            {resource.scope}
+                           </span>
+                        </div>
+                        <p className="text-[11px] text-gray-400 font-medium truncate">{resource.email || 'no-sync@active.local'}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4">
-                    <span className="text-sm text-gray-900">{resource.role}</span>
+                  <td className="px-6 py-4">
+                    <span className="text-[13px] font-bold text-[#0f3433]">{resource.role}</span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-6 py-4">
                     {canManageResources ? (
                       <select
                         value={resource.status}
-                        onChange={(e) =>
-                          void upsertResource({
-                            ...resource,
-                            status: e.target.value as 'available' | 'allocated' | 'on_leave',
-                          })
-                        }
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(resource.status)}`}
+                        onChange={(e) => void upsertResource({ ...resource, status: e.target.value as any })}
+                        className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-lg border-none focus:ring-0 cursor-pointer appearance-none ${getStatusColor(resource.status)}`}
                       >
-                        <option value="available">available</option>
-                        <option value="allocated">allocated</option>
-                        <option value="on_leave">on leave</option>
+                        <option value="available">Available</option>
+                        <option value="allocated">Allocated</option>
+                        <option value="on_leave">Maintenance</option>
                       </select>
                     ) : (
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(resource.status)}`}>
-                        {resource.status.replace('_', ' ')}
+                      <span className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest rounded-lg ${getStatusColor(resource.status)}`}>
+                        {resource.status}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 max-w-[80px] h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${
-                            resource.allocated >= 90 ? 'bg-red-500' :
-                            resource.allocated >= 70 ? 'bg-amber-500' : 'bg-green-500'
+                          className={`h-full rounded-full transition-all duration-700 ${
+                            resource.allocated >= 90 ? 'bg-red-400' :
+                            resource.allocated >= 70 ? 'bg-amber-400' : 'bg-[#12b3a8]'
                           }`}
                           style={{ width: `${resource.allocated}%` }}
                         />
                       </div>
-                      <span className="text-sm text-gray-600">{resource.allocated}%</span>
-                      {canManageResources && (
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={resource.allocated}
-                          onChange={(e) =>
-                            void upsertResource({
-                              ...resource,
-                              allocated: Number(e.target.value),
-                            })
-                          }
-                        />
-                      )}
+                      <span className="text-[12px] font-black text-[#0f3433]">{resource.allocated}%</span>
                     </div>
                   </td>
-                  <td className="px-4 py-4">
-                    <span className="text-sm text-gray-900">
-                      PKR {resource.costRate.toLocaleString()}/
-                      {(resource.rateBasis ?? 'hour') === 'hour' ? 'hr' : resource.rateBasis}
+                  <td className="px-6 py-4">
+                    <span className="text-[13px] font-bold text-[#0f3433]">
+                      PKR {resource.costRate.toLocaleString()} <span className="text-[10px] text-gray-400">/HR</span>
                     </span>
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {resource.skills.slice(0, 2).map((skill, index) => (
-                        <span key={index} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
-                          {skill}
-                        </span>
-                      ))}
-                      {resource.skills.length > 2 && (
-                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
-                          +{resource.skills.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <span className="text-xs text-gray-500">Updated {new Date(resource.updatedAt).toLocaleDateString()}</span>
+                  <td className="px-6 py-4 text-right">
+                    <span className="text-[10px] font-bold text-gray-300 uppercase">SYNC {new Date(resource.updatedAt).toLocaleDateString()}</span>
                   </td>
                 </tr>
               ))}
@@ -407,36 +325,48 @@ export default function ResourceManagement() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resource Allocations</h3>
-        <div className="space-y-4">
-          {allocations.map((allocation) => {
-            const resource = resources.find(r => r.id === allocation.resourceId);
-            return (
-              <div key={allocation.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {resource?.name ? resource.name.split(' ').map(n => n[0]).join('') : 'AI'}
+      {/* Allocation Log - Reference Style */}
+      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white relative overflow-hidden shadow-xl">
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-8">
+             <div className="flex items-center gap-3">
+                <Target className="w-5 h-5 text-[#12b3a8]" />
+                <h3 className="text-xl font-bold tracking-tight">Active Allocation Manifest</h3>
+             </div>
+             <button className="text-[11px] font-bold uppercase tracking-widest text-[#a0c4c2] hover:text-white flex items-center gap-2">
+                Audit Timeline <ArrowRight className="w-3.5 h-3.5" />
+             </button>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {allocations.slice(0, 4).map((allocation) => {
+              const resource = resources.find(r => r.id === allocation.resourceId);
+              return (
+                <div key={allocation.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-9 h-9 bg-[#12b3a8] rounded-xl flex items-center justify-center text-white text-[10px] font-black">
+                      {resource?.name ? resource.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'AI'}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{resource?.name || 'External Agency'}</p>
+                      <p className="text-[10px] text-[#a0c4c2] font-bold uppercase truncate tracking-tighter">{allocation.taskName}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{resource?.name}</p>
-                    <p className="text-xs text-gray-500">{allocation.taskName}</p>
+                  <div className="text-right shrink-0">
+                    <p className="text-[12px] font-black text-[#12b3a8]">{allocation.allocation}%</p>
+                    <p className="text-[9px] text-[#a0c4c2] font-bold uppercase">{allocation.startDate}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Period</p>
-                    <p className="text-sm text-gray-900">{allocation.startDate} - {allocation.endDate}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">Allocation</p>
-                    <p className="text-sm font-medium text-gray-900">{allocation.allocation}%</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          
+          {allocations.length === 0 && (
+             <p className="text-center py-4 text-[#a0c4c2] text-sm italic font-medium">No live allocations detected in current sprint dataset.</p>
+          )}
         </div>
+        {/* Subtle decorative glow */}
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-[#12b3a8]/5 rounded-full blur-3xl"></div>
       </div>
     </div>
   );

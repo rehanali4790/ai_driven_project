@@ -6,7 +6,9 @@ import {
   Users,
   Bot,
   Upload,
-  FolderKanban
+  FolderKanban,
+  Settings,
+  ChevronLeft
 } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 
@@ -29,21 +31,31 @@ const menuItems = [
 
 export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
   return (
-    <aside className="w-64 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col">
-      <div className="p-6 border-b border-slate-700">
+    <aside className="w-64 bg-white flex flex-col border-r border-gray-100 h-screen transition-all duration-300">
+      {/* Header / Logo Section - Reference Style */}
+      <div className="p-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <FileText className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 bg-[#e8f8f7] rounded-xl flex items-center justify-center">
+            <FileText className="w-6 h-6 text-[#12b3a8]" />
           </div>
           <div>
-            <h1 className="font-bold text-lg">InfraMind</h1>
-            <p className="text-xs text-slate-400">Project Intelligence</p>
+            <h1 className="font-bold text-lg text-[#0f3433] tracking-tight leading-tight">InfraMind</h1>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Enterprise</span>
           </div>
         </div>
+        <button className="p-1 hover:bg-gray-50 rounded-lg text-gray-400">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
       </div>
 
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
+      {/* Section Label - Clean Look */}
+      <div className="px-7 py-2">
+        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[1.5px]">Main Menu</p>
+      </div>
+
+      {/* Navigation - Emerald Theme */}
+      <nav className="flex-1 px-4 py-2 overflow-y-auto">
+        <ul className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -51,14 +63,16 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
               <li key={item.id}>
                 <button
                   onClick={() => onNavigate(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                     isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                      ? 'bg-[#f0f9f8] text-[#12b3a8]'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-[#0f3433]'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-[#12b3a8]' : 'text-gray-400 group-hover:text-[#12b3a8]'}`} />
+                  <span className={`text-[14px] font-semibold ${isActive ? 'text-[#0f3433]' : ''}`}>
+                    {item.label}
+                  </span>
                 </button>
               </li>
             );
@@ -66,13 +80,30 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-slate-700">
-        <div className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 rounded-lg p-4 border border-emerald-500/30">
-          <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium mb-2">
-            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-            InfraMind Engine Active
+      {/* Footer Section - Simplified Engine Status */}
+      <div className="p-4 border-t border-gray-50">
+        <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="relative">
+              <div className="w-2.5 h-2.5 bg-[#12b3a8] rounded-full"></div>
+              <div className="w-2.5 h-2.5 bg-[#12b3a8] rounded-full absolute top-0 left-0 animate-ping opacity-75"></div>
+            </div>
+            <span className="text-[11px] font-bold text-[#0f3433] uppercase">AI Active</span>
           </div>
-          <p className="text-xs text-slate-400">Powered by InfraMind AI</p>
+          <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+            InfraMind Engine is analyzing project documents in real-time.
+          </p>
+        </div>
+        
+        {/* User / Profile Style Placeholder at bottom */}
+        <div className="mt-4 flex items-center gap-3 px-2 py-1">
+          <div className="w-9 h-9 bg-[#12b3a8] rounded-full flex items-center justify-center text-white font-bold text-xs">
+            JD
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-[#0f3433] truncate">Project Lead</p>
+            <p className="text-[10px] text-gray-400 font-medium truncate">infra.mind/active</p>
+          </div>
         </div>
       </div>
     </aside>

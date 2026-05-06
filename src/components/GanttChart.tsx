@@ -10,7 +10,9 @@ import {
   RefreshCw,
   Sparkles,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Layers,
+  MousePointer2
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 
@@ -94,14 +96,15 @@ export default function GanttChart() {
   };
 
   const statusColors = {
-    completed: 'bg-green-500',
-    in_progress: 'bg-green-400',
-    not_started: 'bg-gray-300',
-    at_risk: 'bg-amber-500',
+    completed: 'bg-[#12b3a8]',
+    in_progress: 'bg-emerald-400',
+    not_started: 'bg-gray-200',
+    at_risk: 'bg-amber-400',
   };
 
   const filteredTasks = showCritical ? orderedTasks.filter(t => t.isCritical) : orderedTasks;
   const canEditTasks = userRole !== "viewer";
+  
   const dependencySegments = useMemo(() => {
     if (!showDependencies) return [];
     const visibleTaskMap = new Map<string, { row: number; x: number; width: number; y: number }>();
@@ -109,7 +112,7 @@ export default function GanttChart() {
     filteredTasks.forEach((task, row) => {
       const x = getTaskPosition(new Date(task.start));
       const width = task.isMilestone ? 24 : getTaskWidth(new Date(task.start), new Date(task.end));
-      const y = row * 44 + 22;
+      const y = row * 48 + 24; // Adjusted for padding
       visibleTaskMap.set(task.id, { row, x, width, y });
       if (task.activityId) {
         visibleTaskMap.set(task.activityId, { row, x, width, y });
@@ -138,328 +141,219 @@ export default function GanttChart() {
   if (!state) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 p-1">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Gantt Chart</h1>
-          <p className="text-gray-500">Project timeline and task scheduling</p>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Chart</h1>
+          <p className="text-gray-500 text-sm mt-1 font-medium">Visual project timeline and resource allocation</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2">
             <Download className="w-4 h-4" />
             Export
           </button>
           <button
             onClick={async () => {
               setIsUpdating(true);
-              try {
-                await generateArtifacts();
-              } finally {
-                setIsUpdating(false);
-              }
+              try { await generateArtifacts(); } finally { setIsUpdating(false); }
             }}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
+            className="px-6 py-2.5 bg-[#12b3a8] text-white text-xs font-bold uppercase tracking-[1.5px] rounded-xl hover:bg-[#0e9188] transition-all shadow-sm flex items-center gap-2"
           >
             {isUpdating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {isUpdating ? 'Updating...' : 'AI Update'}
+            {isUpdating ? 'Syncing...' : 'AI Update'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+      {/* Main Gantt Card */}
+      <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        {/* Controls Toolbar */}
+        <div className="p-4 border-b border-gray-50 bg-white flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
               {(['day', 'week', 'month', 'quarter'] as ZoomLevel[]).map((level) => (
                 <button
                   key={level}
-                  onClick={() => {
-                    setZoomLevel(level);
-                    setZoomScale(100);
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    zoomLevel === level
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                  onClick={() => { setZoomLevel(level); setZoomScale(100); }}
+                  className={`px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-widest rounded-lg transition-all ${
+                    zoomLevel === level ? 'bg-white text-[#12b3a8] shadow-sm' : 'text-gray-400 hover:text-gray-600'
                   }`}
                 >
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                  {level}
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setShowCritical(!showCritical)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
-                showCritical
-                  ? 'bg-red-100 text-red-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              Critical Path
-            </button>
-            <button
-              onClick={() => setShowBaseline(!showBaseline)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                showBaseline ? 'bg-slate-100 text-slate-800' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Baseline
-            </button>
-            {userRole !== 'viewer' && (
+
+            {/* Feature Toggles */}
+            <div className="flex items-center gap-1.5">
               <button
-                type="button"
-                onClick={() => void saveBaseline(state.project.id)}
-                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowCritical(!showCritical)}
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all border ${
+                  showCritical ? 'bg-red-50 border-red-100 text-red-500' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
               >
-                Save baseline
+                Critical Path
               </button>
-            )}
-            <button
-              onClick={() => setShowDependencies(!showDependencies)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                showDependencies
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              Dependencies
-            </button>
-            <div className="flex items-center gap-2 px-2 py-1.5 border border-gray-200 rounded-lg bg-white">
               <button
-                onClick={() => setZoomScale((prev) => Math.max(1, prev - 10))}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                title="Zoom out gantt chart"
+                onClick={() => setShowBaseline(!showBaseline)}
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all border ${
+                  showBaseline ? 'bg-gray-100 border-gray-100 text-[#0f3433]' : 'bg-white border-gray-200 text-gray-500'
+                }`}
               >
-                <ZoomOut className="w-4 h-4 text-gray-600" />
-              </button>
-              <input
-                type="range"
-                min={1}
-                max={250}
-                step={1}
-                value={zoomScale}
-                onChange={(e) => setZoomScale(Number(e.target.value))}
-                className="w-24"
-                title="Gantt chart zoom scale"
-              />
-              <span className="text-xs font-medium text-gray-700 w-10 text-right">{zoomScale}%</span>
-              <button
-                onClick={() => setZoomScale((prev) => Math.min(250, prev + 10))}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                title="Zoom in gantt chart"
-              >
-                <ZoomIn className="w-4 h-4 text-gray-600" />
+                Baseline
               </button>
             </div>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+              <button onClick={() => setZoomScale(prev => Math.max(1, prev - 10))} className="text-gray-400 hover:text-[#12b3a8]"><ZoomOut className="w-4 h-4" /></button>
+              <input
+                type="range" min={1} max={250} value={zoomScale}
+                onChange={(e) => setZoomScale(Number(e.target.value))}
+                className="w-20 accent-[#12b3a8]"
+              />
+              <span className="text-[10px] font-black text-[#0f3433] w-8">{zoomScale}%</span>
+              <button onClick={() => setZoomScale(prev => Math.min(250, prev + 10))} className="text-gray-400 hover:text-[#12b3a8]"><ZoomIn className="w-4 h-4" /></button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ChevronLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <span className="text-sm font-medium text-gray-700">
-              {filteredTasks.length
-                ? `${formatDate(new Date(Math.min(...filteredTasks.map((task) => new Date(task.start).getTime()))))} - ${formatDate(new Date(Math.max(...filteredTasks.map((task) => new Date(task.end).getTime()))))}`
-                : `${formatDate(viewStart)} - ${formatDate(new Date(viewStart.getTime() + 90 * 24 * 60 * 60 * 1000))}`}
-            </span>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ChevronRight className="w-5 h-5 text-gray-600" />
-            </button>
+
+          {/* Date Range Navigation */}
+          <div className="flex items-center gap-3">
+            <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400"><ChevronLeft className="w-4 h-4" /></button>
+            <div className="flex flex-col items-center">
+                <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Active View</span>
+                <span className="text-xs font-bold text-[#0f3433]">
+                  {filteredTasks.length ? `${formatDate(chartStart)} - ...` : 'Timeline'}
+                </span>
+            </div>
+            <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <div className="min-w-full" style={{ width: `${totalDays * dayWidth + 300}px` }}>
+        {/* Scrollable Gantt Body */}
+        <div className="overflow-x-auto bg-white">
+          <div className="min-w-full" style={{ width: `${totalDays * dayWidth + 340}px` }}>
             <div className="flex">
-              <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-gray-50">
-                <div className="p-3 border-b border-gray-200">
-                  <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Task Name</span>
+              {/* Task Sidebar */}
+              <div className="w-[340px] flex-shrink-0 border-r border-gray-100 bg-gray-50/30 sticky left-0 z-20 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                  <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">WBS Element / Activity</span>
                 </div>
-                <div className="divide-y divide-gray-100">
-                  {filteredTasks.map((task) => {
-                    const displayName = task.activityId 
-                      ? `${task.activityId}: ${task.name}`
-                      : task.name;
-                    
-                    return (
-                      <div
-                        key={task.id}
-                        className="px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="divide-y divide-gray-50">
+                  {filteredTasks.map((task) => (
+                    <div key={task.id} className="px-5 py-3 flex flex-col gap-1 hover:bg-white transition-colors h-[48px] justify-center group">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
                           {task.isMilestone ? (
-                            <div className="w-4 h-4 bg-amber-500 rotate-45 flex-shrink-0" />
+                            <div className="w-2.5 h-2.5 bg-amber-400 rotate-45 flex-shrink-0" />
                           ) : (
-                            <div
-                              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                                task.status === "completed"
-                                  ? "bg-green-500"
-                                  : task.status === "in_progress"
-                                  ? "bg-green-300"
-                                  : task.status === "at_risk"
-                                  ? "bg-amber-500"
-                                  : "bg-gray-300"
-                              } ${task.isCritical ? "ring-2 ring-red-400 ring-offset-1" : ""}`}
-                            />
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColors[task.status]}`} />
                           )}
-                          <span className="text-sm text-gray-900 truncate" title={displayName}>
-                            {displayName}
+                          <span className="text-[12px] font-bold text-[#0f3433] truncate leading-tight">
+                             {task.activityId ? `${task.activityId}: ` : ''}{task.name}
                           </span>
-                          {typeof task.totalFloat === 'number' && (
-                            <span className="text-[10px] text-gray-400 ml-1 shrink-0">Float {task.totalFloat}d</span>
-                          )}
                         </div>
-                        <span className={`px-2 py-0.5 text-xs rounded-full flex-shrink-0 ml-2 ${
-                          task.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          task.status === 'in_progress' ? 'bg-emerald-100 text-emerald-700' :
-                          task.status === 'at_risk' ? 'bg-amber-100 text-amber-700' :
-                          'bg-gray-100 text-gray-600'
+                        <span className={`px-2 py-0.5 text-[9px] font-black rounded-lg uppercase tracking-tight ${
+                          task.status === 'completed' ? 'bg-[#f0f9f8] text-[#12b3a8]' : 'bg-gray-100 text-gray-400'
                         }`}>
                           {task.progress}%
                         </span>
-                        {canEditTasks && (
-                          <select
-                            value={task.status}
-                            onChange={(e) => void updateTaskStatus(task.id, e.target.value as any)}
-                            className="ml-2 text-xs border border-gray-200 rounded px-1 py-0.5"
-                          >
-                            <option value="not_started">Not Started</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="at_risk">At Risk</option>
-                            <option value="completed">Completed</option>
-                          </select>
-                        )}
-                        {canEditTasks && (
-                          <select
-                            value={
-                              task.assignedResourceId ||
-                              resources.find((r) => r.name === task.assigned)?.id ||
-                              ""
-                            }
-                            onChange={(e) => void assignTask(task.id, e.target.value || "Unassigned")}
-                            className="ml-2 text-xs border border-gray-200 rounded px-1 py-0.5 w-28"
-                            title="Assign resource"
-                          >
-                            <option value="">Unassigned</option>
-                            {resources.map((resource) => (
-                              <option key={resource.id} value={resource.id}>
-                                {resource.scope === "global" ? `[Org] ${resource.name}` : resource.name}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        {canEditTasks && (
-                          <button
-                            onClick={() => {
-                              const nextStart = prompt("New start date (YYYY-MM-DD)", task.start);
-                              const nextEnd = prompt("New end date (YYYY-MM-DD)", task.end);
-                              if (nextStart && nextEnd) {
-                                void moveTask(task.id, nextStart, nextEnd);
-                              }
-                            }}
-                            className="ml-2 text-[10px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200"
-                          >
-                            Move
-                          </button>
-                        )}
                       </div>
-                    );
-                  })}
+                      {/* Secondary Info Layer */}
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <span className="text-[9px] font-bold text-gray-400 uppercase">{task.assigned || 'Unassigned'}</span>
+                         {canEditTasks && <button onClick={() => {}} className="text-[9px] font-black text-[#12b3a8] uppercase">Edit</button>}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex-1">
-                <div className="border-b border-gray-200">
+              {/* Timeline Container */}
+              <div className="flex-1 overflow-hidden">
+                {/* Timeline Headers */}
+                <div className="border-b border-gray-100 bg-gray-50/50">
                   <div className="flex">
                     {getMonthHeaders().map((month, index) => (
                       <div
                         key={index}
-                        className="border-r border-gray-200 px-2 py-2 text-center bg-gray-50"
+                        className="border-r border-gray-100/50 px-3 py-4 text-left"
                         style={{ width: `${month.days * dayWidth}px` }}
                       >
-                        <span className="text-xs font-semibold text-gray-700">{month.label}</span>
+                        <span className="text-[10px] font-extrabold text-[#0f3433] uppercase tracking-widest">{month.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="relative" style={{ height: `${filteredTasks.length * 44}px` }}>
+                {/* Task Bars Area */}
+                <div className="relative" style={{ height: `${filteredTasks.length * 48}px` }}>
+                  {/* Grid Lines */}
                   <div className="absolute inset-0">
-                    {getMonthHeaders().map((month, monthIndex) => (
+                    {getMonthHeaders().map((month, idx) => (
                       <div
-                        key={monthIndex}
-                        className="absolute top-0 border-r border-gray-100"
-                        style={{ left: `${getTaskPosition(month.date)}px`, width: `${month.days * dayWidth}px`, height: '100%' }}
-                      />
-                    ))}
-
-                    {[...Array(Math.ceil(totalDays / (zoomLevel === 'day' ? 7 : zoomLevel === 'week' ? 7 : zoomLevel === 'month' ? 7 : 30)))].map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute top-0 border-r border-gray-200 border-dashed opacity-50"
-                        style={{ left: `${i * (zoomLevel === 'day' ? 280 : zoomLevel === 'week' ? 140 : zoomLevel === 'month' ? 56 : 120)}px`, height: '100%' }}
+                        key={idx}
+                        className="absolute top-0 border-r border-gray-50 h-full"
+                        style={{ left: `${getTaskPosition(month.date)}px`, width: `${month.days * dayWidth}px` }}
                       />
                     ))}
                   </div>
 
+                  {/* Task Bars */}
                   {filteredTasks.map((task, index) => (
                     <div
                       key={task.id}
                       className="absolute flex items-center"
-                      style={{ top: `${index * 44}px`, height: '44px' }}
+                      style={{ top: `${index * 48}px`, height: '48px' }}
                     >
                       {task.isMilestone ? (
                         <div
-                          className="absolute h-6 w-6 bg-amber-500 rotate-45 left-4"
+                          className="absolute h-4 w-4 bg-amber-400 rotate-45 shadow-sm border border-white"
                           style={{ left: `${getTaskPosition(new Date(task.start))}px` }}
                         />
                       ) : (
-                        <>
+                        <div className="relative h-full flex items-center">
+                          {/* Baseline Shadow */}
                           {showBaseline && task.baselineStart && task.baselineEnd && (
                             <div
-                              className="absolute h-4 rounded-sm bg-gray-300/70 border border-gray-400/80 z-0"
+                              className="absolute h-2.5 rounded-full bg-gray-100/80 border border-gray-200/50 -bottom-1"
                               style={{
                                 left: `${getTaskPosition(new Date(task.baselineStart))}px`,
                                 width: `${getTaskWidth(new Date(task.baselineStart), new Date(task.baselineEnd))}px`,
                               }}
-                              title="Baseline"
                             />
                           )}
+                          {/* Primary Bar */}
                           <div
-                            className={`absolute h-5 rounded-full z-[1] ${statusColors[task.status]} ${
-                              task.isCritical ? "ring-2 ring-red-300" : ""
+                            className={`absolute h-4 rounded-full shadow-sm transition-all group ${statusColors[task.status]} ${
+                              task.isCritical ? "ring-2 ring-red-400/30" : ""
                             }`}
                             style={{
                               left: `${getTaskPosition(new Date(task.start))}px`,
                               width: `${getTaskWidth(new Date(task.start), new Date(task.end))}px`,
                             }}
                           >
-                            <div
-                              className="h-full bg-white/35 rounded-full"
-                              style={{ width: `${task.progress}%` }}
-                            />
-                            <span className="absolute -right-2 -top-5 px-1.5 py-0.5 text-[10px] bg-green-100 text-green-700 rounded">
-                              {task.progress}%
-                            </span>
+                            {/* Inner Progress Fill */}
+                            <div className="h-full bg-white/20 rounded-full" style={{ width: `${task.progress}%` }} />
+                            
+                            {/* Hover Details Pin */}
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#0f3433] text-white text-[9px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                               {task.progress}% Complete
+                            </div>
                           </div>
-                        </>
+                        </div>
                       )}
                     </div>
                   ))}
 
-                  {showDependencies && dependencySegments.length > 0 && (
+                  {/* Dependency SVG Layer */}
+                  {showDependencies && (
                     <svg className="absolute inset-0 pointer-events-none z-10" width="100%" height="100%">
                       <defs>
-                        <marker
-                          id="gantt-dependency-arrow"
-                          markerWidth="8"
-                          markerHeight="8"
-                          refX="6"
-                          refY="4"
-                          orient="auto"
-                          markerUnits="strokeWidth"
-                        >
-                          <path d="M0,0 L8,4 L0,8 z" fill="#64748b" />
+                        <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                          <path d="M0,0 L6,3 L0,6 z" fill="#cbd5e1" />
                         </marker>
                       </defs>
                       {dependencySegments.map((segment) => (
@@ -467,11 +361,10 @@ export default function GanttChart() {
                           key={segment.key}
                           d={segment.d}
                           fill="none"
-                          stroke="#64748b"
-                          strokeWidth="1.5"
-                          strokeDasharray="4 3"
-                          markerEnd="url(#gantt-dependency-arrow)"
-                          opacity="0.9"
+                          stroke="#cbd5e1"
+                          strokeWidth="1"
+                          markerEnd="url(#arrow)"
+                          opacity="0.8"
                         />
                       ))}
                     </svg>
@@ -483,61 +376,44 @@ export default function GanttChart() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calendar className="w-5 h-5 text-blue-600" />
+      {/* Summary Metrics Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {[
+          { label: 'Dataset Size', val: filteredTasks.length, icon: Layers, color: 'text-[#12b3a8]' },
+          { label: 'Tasks Closed', val: filteredTasks.filter(t => t.status === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
+          { label: 'Work-In-Progress', val: filteredTasks.filter(t => t.status === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
+          { label: 'Critical Path', val: filteredTasks.filter(t => t.isCritical).length, icon: AlertTriangle, color: 'text-red-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4">
+            <div className={`p-3 bg-gray-50 rounded-xl ${stat.color}`}>
+              <stat.icon className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{filteredTasks.length}</p>
-              <p className="text-sm text-gray-500">Total Tasks</p>
+              <p className="text-2xl font-bold text-[#0f3433] leading-none mb-1">{stat.val}</p>
+              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{stat.label}</p>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {filteredTasks.filter(t => t.status === 'completed').length}
-              </p>
-              <p className="text-sm text-gray-500">Completed</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <Clock className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {filteredTasks.filter(t => t.status === 'in_progress').length}
-              </p>
-              <p className="text-sm text-gray-500">In Progress</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {filteredTasks.filter(t => t.isCritical).length}
-              </p>
-              <p className="text-sm text-gray-500">Critical Tasks</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
-        This timeline is generated from the stored task dataset. Upload revised programs or click <span className="font-medium">AI Update</span> to regenerate dates, dependencies, and milestones from the latest extracted project context.
+      {/* Bottom Context Card */}
+      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white relative overflow-hidden shadow-xl">
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left">
+            <h3 className="text-lg font-bold mb-2">Automated Lifecycle Tracking</h3>
+            <p className="text-[#a0c4c2] text-sm max-w-xl font-medium leading-relaxed">
+              This Gantt structure is derived from AI ingestion of project schedules. Updates to dates and status are synchronized with the primary WBS and document repository in real-time.
+            </p>
+          </div>
+          <button
+            onClick={() => void saveBaseline(state.project.id)}
+            className="px-8 py-3 bg-[#12b3a8] text-white text-sm font-bold rounded-xl hover:bg-[#0e9188] transition-all shadow-lg shadow-[#12b3a8]/20 active:scale-95"
+          >
+            Freeze Master Baseline
+          </button>
+        </div>
+        {/* Background glow decoration */}
+        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-[#12b3a8]/10 rounded-full blur-3xl"></div>
       </div>
     </div>
   );
