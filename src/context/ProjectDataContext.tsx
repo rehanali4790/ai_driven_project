@@ -22,6 +22,8 @@ import {
   WbsNodeUpdateDraft,
   WorkingCalendar,
   WorkspaceMeta,
+  UnifiedPlanDraft,
+  PlannedTaskNodeDraft,
 } from "@/lib/types";
 
 interface ProjectDataContextValue {
@@ -50,6 +52,8 @@ interface ProjectDataContextValue {
   updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
   updateWbsNode: (nodeId: string, updates: WbsNodeUpdateDraft) => Promise<void>;
   createWbsNode: (parentId: string, node: WbsNodeCreateDraft) => Promise<void>;
+  createUnifiedPlan: (payload: UnifiedPlanDraft) => Promise<void>;
+  createPlannedTaskNode: (payload: PlannedTaskNodeDraft) => Promise<void>;
   transcribeAudio: (audio: Blob) => Promise<string>;
   synthesizeSpeech: (text: string) => Promise<Blob>;
   userRole: UserRole;
@@ -178,6 +182,10 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
         runBootstrapAction(api.updateWbsNode(nodeId, updates)),
       createWbsNode: async (parentId: string, node: WbsNodeCreateDraft) =>
         runBootstrapAction(api.createWbsNode(parentId, node)),
+      createUnifiedPlan: async (payload: UnifiedPlanDraft) =>
+        runBootstrapAction(api.createUnifiedPlan(payload)),
+      createPlannedTaskNode: async (payload: PlannedTaskNodeDraft) =>
+        runBootstrapAction(api.createPlannedTaskNode(payload)),
       transcribeAudio: async (audio: Blob) => {
         const result = await api.stt(audio);
         return result.text;

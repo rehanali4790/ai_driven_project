@@ -117,9 +117,17 @@ export default function WBSView() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const rootNode = state?.wbs;
-  const latestActivity = state?.activities?.[0];
   const processingDocs = (state?.documents ?? []).filter((doc) => doc.status === 'processing');
   const failedDocs = (state?.documents ?? []).filter((doc) => doc.status === 'failed');
+  const linkedTask = selectedNode
+    ? (state?.tasks ?? []).find(
+        (task) =>
+          task.id === selectedNode.id ||
+          task.activityId === selectedNode.id ||
+          task.wbsNodeId === selectedNode.id ||
+          task.name.toLowerCase() === selectedNode.name.toLowerCase(),
+      )
+    : null;
 
   const visibleCount = useMemo(() => {
     const countNodes = (node: WBSNode): number =>
@@ -276,7 +284,9 @@ export default function WBSView() {
               { label: 'Type', val: selectedNode.type.replace('_', ' ') },
               { label: 'Status', val: selectedNode.status.replace('_', ' ') },
               { label: 'Progress', val: `${selectedNode.progress}%` },
-              { label: 'Children', val: selectedNode.children?.length || 0 }
+              { label: 'Children', val: selectedNode.children?.length || 0 },
+              { label: 'Task Dates', val: linkedTask ? `${linkedTask.start} - ${linkedTask.end}` : 'Not linked' },
+              { label: 'Assigned', val: linkedTask?.assigned || 'Unassigned' }
             ].map((item, idx) => (
               <div key={idx} className="space-y-1">
                 <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{item.label}</label>

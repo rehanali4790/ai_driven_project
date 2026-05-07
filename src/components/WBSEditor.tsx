@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useProjectData } from "@/context/ProjectDataContext";
 import { TaskStatus, WBSNode } from "@/lib/types";
-import { PlusCircle, Edit3, Layers, BarChart3, ChevronRight } from "lucide-react";
+import { PlusCircle, Edit3, Layers, BarChart3, ChevronDown } from "lucide-react";
 
 const statusOptions: TaskStatus[] = ["not_started", "in_progress", "at_risk", "completed"];
 
@@ -14,6 +14,9 @@ function flatten(node: WBSNode, acc: WBSNode[] = []) {
 export default function WBSEditor() {
   const { state, updateWbsNode, createWbsNode, userRole } = useProjectData();
   const [selectedParent, setSelectedParent] = useState("");
+  const [parentSearch, setParentSearch] = useState("");
+  const [showParentDropdown, setShowParentDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState({
     name: "",
     type: "task" as WBSNode["type"],
@@ -21,8 +24,56 @@ export default function WBSEditor() {
     progress: 0,
   });
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowParentDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const canEdit = userRole !== "viewer";
   const nodes = useMemo(() => (state?.wbs ? flatten(state.wbs) : []), [state?.wbs]);
+  const tasks = state?.tasks ?? [];
+
+  const filteredNodes = useMemo(() => {
+    if (!parentSearch) return nodes;
+    const search = parentSearch.toLowerCase();
+    return nodes.filter(node => 
+      node.name.toLowerCase().includes(search) || 
+      node.code.toLowerCase().includes(search)
+    );
+  }, [nodes, parentSearch]);
+
+  const selectedNode = nodes.find(n => n.id === selectedParent);
+
+  // Handle node creation
+  const handleCreateNode = async () => {
+    if (!canEdit || !draft.name) return;
+    
+    // If no parent selected, use root node as parent
+    const parentId = selectedParent || state?.wbs?.id || "";
+    if (!parentId) {
+      console.error("No parent node available");
+      return;
+    }
+    
+    await createWbsNode(parentId, draft);
+    setDraft({ name: "", type: "task", status: "not_started", progress: 0 });
+    setSelectedParent("");
+    setParentSearch("");
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleCreateNode();
+    }
+  };
 
   if (!state?.wbs) return null;
 
@@ -50,28 +101,71 @@ export default function WBSEditor() {
           <h3 className="text-sm font-bold text-[#0f3433] uppercase tracking-widest">Create New Hierarchy Node</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <div className="flex flex-col gap-1.5 lg:col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+          <div ref={dropdownRef} className="flex flex-col gap-1.5 xl:col-span-1 relative">
             <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Parent Node</label>
-            <select 
-              className="bg-gray-50 border-none rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none appearance-none"
-              value={selectedParent} 
-              onChange={(e) => setSelectedParent(e.target.value)}
-            >
-              <option value="">Select Parent</option>
-              {nodes.map((node) => (
-                <option key={node.id} value={node.id}>{node.code} {node.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                type="text"
+                className="bg-gray-50 border-none rounded-xl px-3 py-2.5 pr-8 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none w-full"
+                placeholder="Search or select parent..."
+                value={selectedNode ? `${selectedNode.code} ${selectedNode.name}` : parentSearch}
+                onChange={(e) => {
+                  setParentSearch(e.target.value);
+                  setSelectedParent("");
+                  setShowParentDropdown(true);
+                }}
+                onFocus={() => setShowParentDropdown(true)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowParentDropdown(!showParentDropdown)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f3433]"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {showParentDropdown && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto z-50">
+                {filteredNodes.length > 0 ? (
+                  filteredNodes.map((node) => (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedParent(node.id);
+                        setParentSearch("");
+                        setShowParentDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-[#f0f9f8] transition-colors text-sm font-medium text-[#0f3433] border-b border-gray-50 last:border-0"
+                    >
+                      <span className="font-bold text-[#12b3a8]">{node.code}</span> {node.name}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-400 italic">
+                    No matching nodes found
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {!selectedParent && nodes.length > 0 && !showParentDropdown && (
+              <p className="text-[9px] text-amber-600 font-medium ml-1 mt-0.5">
+                ⚠️ No parent selected - will create as root level node
+              </p>
+            )}
           </div>
 
-          <div className="flex flex-col gap-1.5 lg:col-span-2">
+          <div className="flex flex-col gap-1.5 xl:col-span-2">
             <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Node Name</label>
             <input 
               className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
-              placeholder="e.g. Site Preparation" 
+              placeholder="e.g. Site Preparation (Press Enter to save)" 
               value={draft.name} 
               onChange={(e) => setDraft({ ...draft, name: e.target.value })} 
+              onKeyPress={handleKeyPress}
             />
           </div>
 
@@ -104,12 +198,10 @@ export default function WBSEditor() {
 
           <div className="flex items-end">
             <button
-              disabled={!canEdit || !selectedParent || !draft.name}
-              onClick={async () => {
-                await createWbsNode(selectedParent, draft);
-                setDraft({ name: "", type: "task", status: "not_started", progress: 0 });
-              }}
+              disabled={!canEdit || !draft.name}
+              onClick={handleCreateNode}
               className="w-full bg-[#12b3a8] hover:bg-[#0e9188] text-white font-bold text-xs uppercase tracking-widest rounded-xl py-3 shadow-lg shadow-[#12b3a8]/10 transition-all disabled:opacity-40 disabled:shadow-none active:scale-95"
+              title={!selectedParent ? "Will create as root level node" : "Add as child node"}
             >
               Add Node
             </button>
@@ -136,6 +228,7 @@ export default function WBSEditor() {
                 <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-left">Ref Code</th>
                 <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-left">Node Designation</th>
                 <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-left">Level</th>
+                <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-left">Linked Schedule</th>
                 <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-left">Live Status</th>
                 <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-left">Completion %</th>
               </tr>
@@ -143,6 +236,16 @@ export default function WBSEditor() {
             <tbody className="divide-y divide-gray-50">
               {nodes.map((node) => (
                 <tr key={node.id} className="hover:bg-gray-50/80 transition-colors group">
+                  {(() => {
+                    const linkedTask = tasks.find(
+                      (task) =>
+                        task.id === node.id ||
+                        task.activityId === node.id ||
+                        task.wbsNodeId === node.id ||
+                        task.name.toLowerCase() === node.name.toLowerCase(),
+                    );
+                    return (
+                      <>
                   <td className="px-6 py-4 text-[13px] font-bold text-gray-400 font-mono tracking-tight">{node.code}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 group-focus-within:translate-x-1 transition-transform">
@@ -159,6 +262,16 @@ export default function WBSEditor() {
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter bg-gray-100/50 px-2 py-1 rounded-md">
                       {node.type.replace("_", " ")}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    {linkedTask ? (
+                      <div className="text-[11px] font-semibold text-[#0f3433]">
+                        {linkedTask.start} - {linkedTask.end}
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{linkedTask.assigned || "Unassigned"}</p>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 uppercase">Not linked</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <select
@@ -194,6 +307,9 @@ export default function WBSEditor() {
                       <span className="text-[12px] font-black text-[#0f3433] w-10 text-right">{node.progress}%</span>
                     </div>
                   </td>
+                      </>
+                    );
+                  })()}
                 </tr>
               ))}
             </tbody>

@@ -3,7 +3,6 @@ import "package:flutter/material.dart";
 
 import "../../core/network/api_client.dart";
 import "../../core/theme/app_theme.dart";
-import "../ai/openai_assistant_service.dart";
 import "../../shared/models/project_models.dart";
 
 class DashboardScreen extends StatefulWidget {
@@ -15,10 +14,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final ApiClient _api = ApiClient();
-  final OpenAiAssistantService _assistant = OpenAiAssistantService();
   final TextEditingController _questionController = TextEditingController();
   late Future<BootstrapResponse> _bootstrap;
-  final List<AssistantMessage> _conversation = <AssistantMessage>[];
+  final List<_AssistantMessage> _conversation = <_AssistantMessage>[];
   bool _asking = false;
   String? _chatError;
 
@@ -34,6 +32,100 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  Future<void> _switchProject(String projectId) async {
+    setState(() {
+      _bootstrap = _api.activateProject(projectId);
+    });
+  }
+
+  Future<void> _openProjectPicker(BootstrapResponse data) async {
+    final projects = data.workspace?.projectList ?? <ProjectListEntry>[];
+    if (projects.isEmpty) return;
+    String query = "";
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = projects
+                .where((project) => project.name.toLowerCase().contains(query.toLowerCase()))
+                .toList();
+            final maxHeight = MediaQuery.of(context).size.height * 0.75;
+            return SizedBox(
+              height: maxHeight,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.borderColorDark,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                    Text(
+                      "Switch Project",
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      onChanged: (value) => setModalState(() => query = value),
+                      decoration: const InputDecoration(
+                        hintText: "Search project...",
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final project = filtered[index];
+                          final active = project.id == data.workspace?.activeProjectId;
+                          return ListTile(
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              _switchProject(project.id);
+                            },
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            leading: Icon(
+                              active ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                              color: active ? AppTheme.primary : AppTheme.textTertiary,
+                            ),
+                            title: Text(
+                              project.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: active ? AppTheme.textPrimary : AppTheme.textSecondary,
+                                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                  ),
+                            ),
+                            subtitle: Text("ID: ${project.id}"),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _askQuestion() async {
     final question = _questionController.text.trim();
     if (question.isEmpty) return;
@@ -42,16 +134,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _chatError = null;
     });
     try {
-      final snapshot = await _api.bootstrap();
-      final userMessage = AssistantMessage(role: "user", content: question);
+      final userMessage = _AssistantMessage(role: "user", content: question);
       setState(() => _conversation.add(userMessage));
-      final result = await _assistant.askProjectQuestion(
-        question: question,
-        snapshot: snapshot,
-        history: _conversation,
-      );
+      final result = await _api.askQuestion(question);
       setState(() {
-        _conversation.add(AssistantMessage(role: "assistant", content: result));
+        _conversation.add(_AssistantMessage(role: "assistant", content: result.answer));
         _questionController.clear();
       });
     } catch (e) {
@@ -73,7 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       future: _bootstrap,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
+          return const Scaffold(
             body: Center(
               child: CircularProgressIndicator(color: AppTheme.primary),
             ),
@@ -85,7 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+                  const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
                   const SizedBox(height: 16),
                   Text(
                     "Failed to load data",
@@ -113,6 +200,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           length: 2,
           child: Scaffold(
             appBar: AppBar(
+              backgroundColor: Colors.white,
               title: Row(
                 children: [
                   Container(
@@ -137,14 +225,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text(
                           "InfraMind",
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
+                                color: AppTheme.textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                         ),
                         Text(
                           "ENTERPRISE",
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Colors.white.withOpacity(0.6),
+                                color: AppTheme.textTertiary,
                               ),
                         ),
                       ],
@@ -157,10 +245,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: AppTheme.lightTeal,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: AppTheme.lightTealBorder,
                     ),
                   ),
                   child: Row(
@@ -189,13 +277,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   icon: const Icon(Icons.refresh_rounded),
                   tooltip: "Refresh",
                 ),
+                if ((data.workspace?.projectList.length ?? 0) > 1)
+                  IconButton(
+                    tooltip: "Switch Project",
+                    onPressed: () => _openProjectPicker(data),
+                    icon: const Icon(Icons.swap_horiz_rounded),
+                  ),
               ],
-              bottom: TabBar(
+              bottom: const TabBar(
                 isScrollable: false,
                 indicatorColor: AppTheme.primary,
                 labelColor: AppTheme.primary,
-                unselectedLabelColor: Colors.white.withOpacity(0.6),
-                tabs: const [
+                unselectedLabelColor: AppTheme.textTertiary,
+                tabs: [
                   Tab(text: "DASHBOARD"),
                   Tab(text: "AI ASSISTANT"),
                 ],
@@ -206,7 +300,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 _OverviewTab(data: data),
                 _AiTab(
                   controller: _questionController,
-                  openAiConfigured: _assistant.isConfigured,
                   asking: _asking,
                   conversation: _conversation,
                   chatError: _chatError,
@@ -230,6 +323,9 @@ class _OverviewTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final project = data.state.project;
     final stats = data.dashboard;
+    final runningTasks = data.state.tasks
+        .where((task) => task.status == "in_progress" || task.status == "at_risk")
+        .toList();
     return RefreshIndicator(
       onRefresh: () async {},
       color: AppTheme.primary,
@@ -251,7 +347,7 @@ class _OverviewTab extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -291,45 +387,139 @@ class _OverviewTab extends StatelessWidget {
                         color: const Color(0xFFA0C4C2),
                       ),
                 ),
+                if (data.workspace != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.play_circle_fill_rounded, color: AppTheme.primary, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Running Project: ${project.name}",
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          "${data.workspace!.projectList.length} total",
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: const Color(0xFFA0C4C2),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.play_circle_rounded, color: AppTheme.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Text("Running Tasks", style: Theme.of(context).textTheme.titleMedium),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (runningTasks.isEmpty)
+                    Text("No running tasks in this project.", style: Theme.of(context).textTheme.bodySmall)
+                  else
+                    ...runningTasks.take(6).map(
+                          (task) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    task.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                          color: AppTheme.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  "${task.progress}%",
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        color: task.status == "at_risk"
+                                            ? AppTheme.error
+                                            : AppTheme.primary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 20),
           
           // Stats Grid
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _KpiCard(
-                label: "OVERALL PROGRESS",
-                value: "${stats.overallProgress}%",
-                icon: Icons.trending_up_rounded,
-                trend: "${data.state.documents.length} docs",
-                isPositive: true,
-              ),
-              _KpiCard(
-                label: "TASKS COMPLETED",
-                value: "${stats.tasksCompleted}/${stats.totalTasks}",
-                icon: Icons.check_circle_rounded,
-                trend: "${stats.inProgress} active",
-                isPositive: true,
-              ),
-              _KpiCard(
-                label: "RESOURCE LOAD",
-                value: "${stats.resourceUtilization}%",
-                icon: Icons.people_rounded,
-                trend: "${data.state.resources.length} resources",
-                isPositive: true,
-              ),
-              _KpiCard(
-                label: "OVERDUE TASKS",
-                value: "${stats.overdueTasks}",
-                icon: Icons.warning_rounded,
-                trend: "${stats.criticalTasks} critical",
-                isPositive: stats.overdueTasks == 0,
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - 12) / 2;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _KpiCard(
+                    width: cardWidth,
+                    label: "OVERALL PROGRESS",
+                    value: "${stats.overallProgress}%",
+                    icon: Icons.trending_up_rounded,
+                    trend: "${data.state.documents.length} docs",
+                    isPositive: true,
+                  ),
+                  _KpiCard(
+                    width: cardWidth,
+                    label: "TASKS COMPLETED",
+                    value: "${stats.tasksCompleted}/${stats.totalTasks}",
+                    icon: Icons.check_circle_rounded,
+                    trend: "${stats.inProgress} active",
+                    isPositive: true,
+                  ),
+                  _KpiCard(
+                    width: cardWidth,
+                    label: "RESOURCE LOAD",
+                    value: "${stats.resourceUtilization}%",
+                    icon: Icons.people_rounded,
+                    trend: "${data.state.resources.length} resources",
+                    isPositive: true,
+                  ),
+                  _KpiCard(
+                    width: cardWidth,
+                    label: "OVERDUE TASKS",
+                    value: "${stats.overdueTasks}",
+                    icon: Icons.warning_rounded,
+                    trend: "${stats.criticalTasks} critical",
+                    isPositive: stats.overdueTasks == 0,
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           
@@ -409,7 +599,7 @@ class _OverviewTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _LegendItem(
@@ -470,7 +660,7 @@ class _OverviewTab extends StatelessWidget {
                           drawVerticalLine: false,
                           horizontalInterval: 5,
                           getDrawingHorizontalLine: (value) {
-                            return FlLine(
+                            return const FlLine(
                               color: AppTheme.borderColor,
                               strokeWidth: 1,
                             );
@@ -621,6 +811,7 @@ class _OverviewTab extends StatelessWidget {
 }
 
 class _KpiCard extends StatelessWidget {
+  final double width;
   final String label;
   final String value;
   final IconData icon;
@@ -628,6 +819,7 @@ class _KpiCard extends StatelessWidget {
   final bool isPositive;
 
   const _KpiCard({
+    required this.width,
     required this.label,
     required this.value,
     required this.icon,
@@ -638,7 +830,7 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: (MediaQuery.of(context).size.width - 44) / 2,
+      width: width,
       child: Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -682,8 +874,8 @@ class _KpiCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: isPositive
-                            ? AppTheme.success.withOpacity(0.1)
-                            : AppTheme.error.withOpacity(0.1),
+                            ? AppTheme.success.withValues(alpha: 0.1)
+                            : AppTheme.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
@@ -761,15 +953,13 @@ class _LegendItem extends StatelessWidget {
 
 class _AiTab extends StatelessWidget {
   final TextEditingController controller;
-  final bool openAiConfigured;
   final bool asking;
-  final List<AssistantMessage> conversation;
+  final List<_AssistantMessage> conversation;
   final String? chatError;
   final VoidCallback onAsk;
 
   const _AiTab({
     required this.controller,
-    required this.openAiConfigured,
     required this.asking,
     required this.conversation,
     required this.chatError,
@@ -799,10 +989,10 @@ class _AiTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
                 child: const Icon(
@@ -855,39 +1045,6 @@ class _AiTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (!openAiConfigured)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.error.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AppTheme.error.withOpacity(0.2),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.warning_rounded,
-                          color: AppTheme.error,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            "OPENAI_API_KEY not configured",
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppTheme.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                
                 // Quick Actions
                 if (conversation.isEmpty) ...[
                   Text(
@@ -941,7 +1098,7 @@ class _AiTab extends StatelessWidget {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(20),
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: AppTheme.lightTeal,
                                     shape: BoxShape.circle,
                                   ),
@@ -991,7 +1148,7 @@ class _AiTab extends StatelessWidget {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 15,
                         offset: const Offset(0, 2),
                       ),
@@ -1128,7 +1285,7 @@ class _QuickActionChip extends StatelessWidget {
 }
 
 class _ChatBubble extends StatelessWidget {
-  final AssistantMessage message;
+  final _AssistantMessage message;
 
   const _ChatBubble({required this.message});
 
@@ -1167,20 +1324,20 @@ class _ChatBubble extends StatelessWidget {
                   DateTime.now().toString().substring(11, 16),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: isUser
-                            ? Colors.white.withOpacity(0.6)
+                            ? Colors.white.withValues(alpha: 0.6)
                             : AppTheme.textTertiary,
                         fontSize: 9,
                       ),
                 ),
                 if (!isUser) ...[
                   const SizedBox(width: 12),
-                  Icon(
+                  const Icon(
                     Icons.volume_up_rounded,
                     size: 12,
                     color: AppTheme.textTertiary,
                   ),
                   const SizedBox(width: 8),
-                  Icon(
+                  const Icon(
                     Icons.content_copy_rounded,
                     size: 12,
                     color: AppTheme.textTertiary,
@@ -1193,6 +1350,13 @@ class _ChatBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AssistantMessage {
+  final String role;
+  final String content;
+
+  const _AssistantMessage({required this.role, required this.content});
 }
 
 class _PrettyText extends StatelessWidget {

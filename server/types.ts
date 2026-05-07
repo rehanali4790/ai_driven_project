@@ -259,6 +259,31 @@ export interface PartialMilestone {
   status?: "completed" | "in_progress" | "pending";
 }
 
+export interface UnifiedPlanChildInput {
+  name: string;
+  durationDays: number;
+  assignedResourceId?: string;
+  status?: TaskStatus;
+}
+
+export interface UnifiedPlanInput {
+  parentName: string;
+  startDate: string;
+  summaryDurationDays: number;
+  parentWbsId?: string;
+  children: UnifiedPlanChildInput[];
+}
+
+export interface PlannedTaskNodeInput {
+  name: string;
+  parentWbsId?: string;
+  durationDays: number;
+  startDate?: string;
+  predecessorTaskId?: string;
+  assignedResourceId?: string;
+  summary?: boolean;
+}
+
 export interface AggregatedExtraction {
   projectUpdates?: Partial<ProjectInfo>;
   summary: string;

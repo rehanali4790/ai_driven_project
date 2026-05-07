@@ -10,6 +10,8 @@ import {
   WbsNodeCreateDraft,
   WbsNodeUpdateDraft,
   WorkingCalendar,
+  UnifiedPlanDraft,
+  PlannedTaskNodeDraft,
 } from "./types";
 
 async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
@@ -183,6 +185,24 @@ export const api = {
         ...api.actorHeaders(),
       },
       body: JSON.stringify({ node }),
+    }),
+  createUnifiedPlan: (payload: UnifiedPlanDraft) =>
+    request<BootstrapResponse>("/api/planning/unified-create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...api.actorHeaders(),
+      },
+      body: JSON.stringify({ payload }),
+    }),
+  createPlannedTaskNode: (payload: PlannedTaskNodeDraft) =>
+    request<BootstrapResponse>("/api/planning/task-node", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...api.actorHeaders(),
+      },
+      body: JSON.stringify({ payload }),
     }),
   stt: async (audio: Blob) => {
     const formData = new FormData();

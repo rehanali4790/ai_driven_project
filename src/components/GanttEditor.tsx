@@ -1,24 +1,57 @@
 import { useMemo, useState } from "react";
 import { useProjectData } from "@/context/ProjectDataContext";
 import { TaskStatus } from "@/lib/types";
-import { Plus, Calendar, User, Target, BarChart3, Edit3 } from "lucide-react";
+import { Plus, Target, BarChart3, Edit3 } from "lucide-react";
 
 const statusOptions: TaskStatus[] = ["not_started", "in_progress", "at_risk", "completed"];
 
 export default function GanttEditor() {
-  const { state, updateTask, createTask, userRole } = useProjectData();
+  const { state, workspace, updateTask, createTask, assignTask, userRole } = useProjectData();
   const [draft, setDraft] = useState({
     name: "",
     start: "",
     end: "",
-    assigned: "Unassigned",
+    assignedResourceId: "",
     status: "not_started" as TaskStatus,
     progress: 0,
+    durationDays: 5,
   });
 
   const tasks = state?.tasks ?? [];
   const resources = state?.resources ?? [];
   const canEdit = userRole !== "viewer";
+  const activeCalendar = useMemo(
+    () => workspace?.calendars.find((calendar) => calendar.id === state?.project.calendarId) ?? workspace?.calendars?.[0],
+    [state?.project.calendarId, workspace?.calendars],
+  );
+
+  const isWorkingDate = (value: string) => {
+    if (!value || !activeCalendar) return true;
+    const current = new Date(`${value}T00:00:00`);
+    const weekday = current.getDay();
+    if (!activeCalendar.workWeek[weekday]) return false;
+    const exception = activeCalendar.exceptions.find((item) => item.date === value);
+    if (!exception) return true;
+    if (exception.type === "holiday") return false;
+    return (exception.hours ?? 0) > 0;
+  };
+
+  const calculateEndDate = (start: string, durationDays: number) => {
+    if (!start || !activeCalendar) return start;
+    const totalDays = Math.max(1, durationDays);
+    const cursor = new Date(`${start}T00:00:00`);
+    let count = 1;
+    while (count < totalDays) {
+      cursor.setDate(cursor.getDate() + 1);
+      const day = cursor.getDay();
+      const iso = cursor.toISOString().slice(0, 10);
+      const exception = activeCalendar.exceptions.find((item) => item.date === iso);
+      const working = exception ? (exception.type === "override" ? (exception.hours ?? 0) > 0 : false) : activeCalendar.workWeek[day];
+      if (working) count += 1;
+    }
+    return cursor.toISOString().slice(0, 10);
+  };
+
   const ordered = useMemo(
     () => [...tasks].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
     [tasks],
@@ -50,8 +83,8 @@ export default function GanttEditor() {
           <h3 className="text-sm font-bold text-[#0f3433] uppercase tracking-widest">Register New Activity</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-          <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-4">
+          <div className="flex flex-col gap-1.5 xl:col-span-2">
             <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Task Designation</label>
             <input 
               className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
@@ -67,8 +100,15 @@ export default function GanttEditor() {
               className="bg-gray-50 border-none rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
               type="date" 
               value={draft.start} 
-              onChange={(e) => setDraft({ ...draft, start: e.target.value })} 
+              onChange={(e) => {
+                const start = e.target.value;
+                const end = start ? calculateEndDate(start, draft.durationDays) : draft.end;
+                setDraft({ ...draft, start, end });
+              }} 
             />
+            {!isWorkingDate(draft.start) && draft.start && (
+              <p className="text-[10px] text-amber-600 font-semibold">Start date is a non-working day in calendar.</p>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -82,14 +122,29 @@ export default function GanttEditor() {
           </div>
 
           <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Duration (working days)</label>
+            <input
+              className="bg-gray-50 border-none rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none"
+              type="number"
+              min={1}
+              value={draft.durationDays}
+              onChange={(e) => {
+                const durationDays = Math.max(1, Number(e.target.value) || 1);
+                const end = draft.start ? calculateEndDate(draft.start, durationDays) : draft.end;
+                setDraft({ ...draft, durationDays, end });
+              }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Assignee</label>
             <select 
               className="bg-gray-50 border-none rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none appearance-none cursor-pointer"
-              value={draft.assigned}
-              onChange={(e) => setDraft({ ...draft, assigned: e.target.value })}
+              value={draft.assignedResourceId}
+              onChange={(e) => setDraft({ ...draft, assignedResourceId: e.target.value })}
             >
-              <option value="Unassigned">Select Lead</option>
-              {resources.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
+              <option value="">Select Lead</option>
+              {resources.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           </div>
 
@@ -108,8 +163,17 @@ export default function GanttEditor() {
             <button
               disabled={!canEdit || !draft.name || !draft.start || !draft.end}
               onClick={async () => {
-                await createTask(draft);
-                setDraft({ name: "", start: "", end: "", assigned: "Unassigned", status: "not_started", progress: 0 });
+                const selectedResource = resources.find((resource) => resource.id === draft.assignedResourceId);
+                await createTask({
+                  name: draft.name,
+                  start: draft.start,
+                  end: draft.end,
+                  status: draft.status,
+                  progress: draft.progress,
+                  assigned: selectedResource?.name || "Unassigned",
+                  assignedResourceId: selectedResource?.id,
+                });
+                setDraft({ name: "", start: "", end: "", assignedResourceId: "", status: "not_started", progress: 0, durationDays: 5 });
               }}
               className="w-full bg-[#0f3433] hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl py-3 shadow-lg transition-all disabled:opacity-40 active:scale-95 flex items-center justify-center gap-2"
             >
@@ -177,11 +241,11 @@ export default function GanttEditor() {
                     <select
                       disabled={!canEdit}
                       className="bg-transparent border-none p-0 text-xs font-semibold text-gray-600 focus:ring-0 cursor-pointer"
-                      value={task.assigned || "Unassigned"}
-                      onChange={(e) => void updateTask(task.id, { assigned: e.target.value })}
+                      value={task.assignedResourceId || ""}
+                      onChange={(e) => void assignTask(task.id, e.target.value)}
                     >
-                      <option value="Unassigned">Unassigned</option>
-                      {resources.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
+                      <option value="">Unassigned</option>
+                      {resources.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                     </select>
                   </td>
                   <td className="px-6 py-4">

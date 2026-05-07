@@ -39,7 +39,6 @@ class AppTheme {
         primary: primary,
         secondary: primaryDark,
         surface: cardBackground,
-        background: scaffoldBackground,
       ),
     );
     
@@ -117,17 +116,19 @@ class AppTheme {
       ),
       scaffoldBackgroundColor: scaffoldBackground,
       appBarTheme: AppBarTheme(
-        backgroundColor: darkBackground,
-        foregroundColor: Colors.white,
+        backgroundColor: cardBackground,
+        foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: false,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: textPrimary,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         color: cardBackground,
         surfaceTintColor: Colors.transparent,
@@ -135,7 +136,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: borderColorDark, width: 1),
         ),
-        shadowColor: Colors.black.withOpacity(0.04),
+        shadowColor: Colors.black.withValues(alpha: 0.04),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: lightTeal,
@@ -219,7 +220,7 @@ class AppTheme {
           color: textTertiary,
         ),
       ),
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: primary,
         unselectedLabelColor: textTertiary,
         indicatorColor: primary,

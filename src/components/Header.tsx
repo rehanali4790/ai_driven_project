@@ -81,7 +81,7 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
       <div className="flex items-center justify-between gap-6">
         {/* Left Side: Project Info & Management */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3 mb-1.5">
             <h2 className="text-2xl font-bold text-[#0f3433] tracking-tight truncate">
               {projectName}
             </h2>
@@ -102,11 +102,11 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
             )}
 
             {canManageProjects && (
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowProjModal(true)}
-                  className="p-2 rounded-xl bg-[#f0f9f8] text-[#12b3a8] hover:bg-[#12b3a8] hover:text-white transition-all"
+                  className="p-1.5 rounded-lg bg-[#f0f9f8] text-[#12b3a8] hover:bg-[#12b3a8] hover:text-white transition-all"
                   title="New Project"
                 >
                   <Plus className="w-4 h-4" />
@@ -117,7 +117,7 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
                     type="button"
                     onClick={() => void handleDelete(activeId)}
                     disabled={busy}
-                    className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                    className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"
                     title="Delete Active"
                   >
                     <Trash2 className="w-4 h-4" />

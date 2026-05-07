@@ -5,7 +5,9 @@ export type ViewType =
   | "wbs_editor"
   | "gantt"
   | "gantt_editor"
+  | "planning_studio"
   | "resources"
+  | "calendar"
   | "ai"
   | "documents";
 
@@ -255,4 +257,29 @@ export interface WbsNodeCreateDraft {
   type: WBSNode["type"];
   status: TaskStatus;
   progress: number;
+}
+
+export interface UnifiedPlanChildDraft {
+  name: string;
+  durationDays: number;
+  assignedResourceId?: string;
+  status?: TaskStatus;
+}
+
+export interface UnifiedPlanDraft {
+  parentName: string;
+  startDate: string;
+  summaryDurationDays: number;
+  parentWbsId?: string;
+  children: UnifiedPlanChildDraft[];
+}
+
+export interface PlannedTaskNodeDraft {
+  name: string;
+  parentWbsId?: string;
+  durationDays: number;
+  startDate?: string;
+  predecessorTaskId?: string;
+  assignedResourceId?: string;
+  summary?: boolean;
 }

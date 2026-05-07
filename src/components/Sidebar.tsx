@@ -7,8 +7,9 @@ import {
   Bot,
   Upload,
   FolderKanban,
-  Settings,
-  ChevronLeft
+  ChevronLeft,
+  Calendar,
+  Rows3
 } from 'lucide-react';
 import { ViewType } from '@/lib/types';
 
@@ -22,10 +23,10 @@ const menuItems = [
   { id: 'overview' as ViewType, label: 'Project Overview', icon: FolderKanban },
   { id: 'documents' as ViewType, label: 'Documents', icon: Upload },
   { id: 'wbs' as ViewType, label: 'WBS Structure', icon: GitBranch },
-  { id: 'wbs_editor' as ViewType, label: 'WBS Editor', icon: GitBranch },
+  { id: 'planning_studio' as ViewType, label: 'Planning Studio', icon: Rows3 },
   { id: 'gantt' as ViewType, label: 'Gantt Chart', icon: GanttChart },
-  { id: 'gantt_editor' as ViewType, label: 'Gantt Editor', icon: GanttChart },
   { id: 'resources' as ViewType, label: 'Resources', icon: Users },
+  { id: 'calendar' as ViewType, label: 'Calendar', icon: Calendar },
   { id: 'ai' as ViewType, label: 'AI Assistant', icon: Bot },
 ];
 

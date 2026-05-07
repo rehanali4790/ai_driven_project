@@ -3,9 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Calendar,
   CheckCircle,
-  Clock,
   AlertTriangle,
   RefreshCw,
   Sparkles,
@@ -15,6 +13,7 @@ import {
   MousePointer2
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
+import { TaskStatus } from '@/lib/types';
 
 type ZoomLevel = 'day' | 'week' | 'month' | 'quarter';
 
@@ -26,8 +25,8 @@ export default function GanttChart() {
   const [showCritical, setShowCritical] = useState(false);
   const [showBaseline, setShowBaseline] = useState(true);
   const [showDependencies, setShowDependencies] = useState(true);
-  const [viewStart] = useState(new Date('2025-09-01'));
   const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const tasks = state?.tasks ?? [];
   const resources = state?.resources ?? [];
@@ -104,6 +103,8 @@ export default function GanttChart() {
 
   const filteredTasks = showCritical ? orderedTasks.filter(t => t.isCritical) : orderedTasks;
   const canEditTasks = userRole !== "viewer";
+  const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? filteredTasks[0] ?? null;
+  const resourceMap = useMemo(() => new Map(resources.map((resource) => [resource.id, resource.name])), [resources]);
   
   const dependencySegments = useMemo(() => {
     if (!showDependencies) return [];
@@ -243,7 +244,13 @@ export default function GanttChart() {
                 </div>
                 <div className="divide-y divide-gray-50">
                   {filteredTasks.map((task) => (
-                    <div key={task.id} className="px-5 py-3 flex flex-col gap-1 hover:bg-white transition-colors h-[48px] justify-center group">
+                    <div
+                      key={task.id}
+                      onClick={() => setSelectedTaskId(task.id)}
+                      className={`px-5 py-3 flex flex-col gap-1 hover:bg-white transition-colors h-[48px] justify-center group cursor-pointer ${
+                        selectedTask?.id === task.id ? "bg-[#f0f9f8]" : ""
+                      }`}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           {task.isMilestone ? (
@@ -395,6 +402,65 @@ export default function GanttChart() {
           </div>
         ))}
       </div>
+
+      {selectedTask && (
+        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Task Control Center</p>
+              <h3 className="text-lg font-bold text-[#0f3433] mt-1">{selectedTask.name}</h3>
+            </div>
+            <div className="text-sm text-gray-500">
+              {selectedTask.start} - {selectedTask.end}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Assignment</label>
+              <select
+                disabled={!canEditTasks}
+                value={selectedTask.assignedResourceId || ""}
+                onChange={(e) => void assignTask(selectedTask.id, e.target.value)}
+                className="mt-1 w-full bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 text-sm"
+              >
+                <option value="">Unassigned</option>
+                {resources.map((resource) => (
+                  <option key={resource.id} value={resource.id}>
+                    {resource.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Status</label>
+              <select
+                disabled={!canEditTasks}
+                value={selectedTask.status}
+                onChange={(e) => void updateTaskStatus(selectedTask.id, e.target.value as TaskStatus)}
+                className="mt-1 w-full bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 text-sm"
+              >
+                <option value="not_started">Not Started</option>
+                <option value="in_progress">In Progress</option>
+                <option value="at_risk">At Risk</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Schedule</label>
+              <button
+                disabled={!canEditTasks}
+                onClick={() => void moveTask(selectedTask.id, selectedTask.start, selectedTask.end)}
+                className="mt-1 w-full bg-[#0f3433] text-white rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                Confirm Current Dates
+              </button>
+            </div>
+          </div>
+          <p className="mt-4 text-xs text-gray-500">
+            Allocated to: <span className="font-semibold text-[#0f3433]">{selectedTask.assignedResourceId ? (resourceMap.get(selectedTask.assignedResourceId) || selectedTask.assigned || "Unassigned") : (selectedTask.assigned || "Unassigned")}</span>
+          </p>
+        </div>
+      )}
 
       {/* Bottom Context Card */}
       <div className="bg-[#0f3433] rounded-[28px] p-8 text-white relative overflow-hidden shadow-xl">
