@@ -7,7 +7,9 @@ import WBSView from "./components/WBSView";
 import WBSEditor from "./components/WBSEditor";
 import GanttChart from "./components/GanttChart";
 import GanttEditor from "./components/GanttEditor";
+import PlanningStudio from "./components/PlanningStudio";
 import ResourceManagement from "./components/ResourceManagement";
+import CalendarManagement from "./components/CalendarManagement";
 import AIAssistant from "./components/AIAssistant";
 import DocumentUpload from "./components/DocumentUpload";
 import { ProjectDataProvider, useProjectData } from "./context/ProjectDataContext";
@@ -32,8 +34,12 @@ function AppShell() {
         return <GanttChart />;
       case "gantt_editor":
         return <GanttEditor />;
+      case "planning_studio":
+        return <PlanningStudio />;
       case "resources":
         return <ResourceManagement />;
+      case "calendar":
+        return <CalendarManagement />;
       case "ai":
         return <AIAssistant />;
       case "documents":

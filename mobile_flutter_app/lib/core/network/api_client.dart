@@ -34,6 +34,18 @@ class ApiClient {
     return _decode(response, ChatResponse.fromJson);
   }
 
+  Future<BootstrapResponse> activateProject(String projectId) async {
+    final response = await _http.post(
+      _uri("/api/workspace/activate"),
+      headers: <String, String>{
+        "Content-Type": "application/json",
+        ..._actorHeaders,
+      },
+      body: jsonEncode(<String, dynamic>{"projectId": projectId}),
+    );
+    return _decode(response, BootstrapResponse.fromJson);
+  }
+
   Future<T> _decode<T>(
     http.Response response,
     T Function(Map<String, dynamic>) parser,

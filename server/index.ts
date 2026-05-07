@@ -37,12 +37,15 @@ import {
   updateTask,
   updateTaskStatus,
   createTask,
+  createUnifiedPlan,
+  createPlannedTaskNode,
   updateWbsNode,
   createWbsNode,
   updateDocument,
   updateProjectRecord,
   upsertCalendar,
   upsertResource,
+  initializeStore,
 } from "./store";
 import {
   AggregatedExtraction,
@@ -51,6 +54,8 @@ import {
   TaskStatus,
   UserRole,
   WorkingCalendar,
+  UnifiedPlanInput,
+  PlannedTaskNodeInput,
 } from "./types";
 
 dotenv.config();
@@ -444,6 +449,36 @@ app.post("/api/wbs/:parentId/children", (req, res) => {
     res.json(getBootstrapResponse());
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "WBS create failed." });
+  }
+});
+
+app.post("/api/planning/unified-create", (req, res) => {
+  try {
+    const { role, name } = getActor(req);
+    const payload = req.body?.payload as UnifiedPlanInput | undefined;
+    if (!payload?.parentName || !payload?.startDate || !payload?.children?.length) {
+      res.status(400).json({ error: "parentName, startDate and at least one child task are required." });
+      return;
+    }
+    createUnifiedPlan(payload, name, role);
+    res.json(getBootstrapResponse());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Unified plan create failed." });
+  }
+});
+
+app.post("/api/planning/task-node", (req, res) => {
+  try {
+    const { role, name } = getActor(req);
+    const payload = req.body?.payload as PlannedTaskNodeInput | undefined;
+    if (!payload?.name || !payload?.durationDays) {
+      res.status(400).json({ error: "name and durationDays are required." });
+      return;
+    }
+    createPlannedTaskNode(payload, name, role);
+    res.json(getBootstrapResponse());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Task node create failed." });
   }
 });
 
@@ -917,7 +952,16 @@ app.use((error: Error, _req: express.Request, res: express.Response, _next: expr
   });
 });
 
-app.listen(port, () => {
-  console.log(`InfraMind API running on http://localhost:${port}`);
-  console.log(`Uploads served from ${path.relative(process.cwd(), uploadsDir)}`);
+async function startServer() {
+  await initializeStore();
+  app.listen(port, () => {
+    console.log(`InfraMind API running on http://localhost:${port}`);
+    console.log(`Uploads served from ${path.relative(process.cwd(), uploadsDir)}`);
+    console.log("Persistence backend: MongoDB");
+  });
+}
+
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
 });

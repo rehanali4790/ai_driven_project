@@ -1,7 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { MongoClient } from "mongodb";
 import { computeCpm, taskDurationDays } from "./cpm";
-import { defaultWorkingCalendar } from "./scheduler";
+import { addWorkingDays, defaultWorkingCalendar, isWorkingDay } from "./scheduler";
 import { buildEmptyWorkspace, emptyState } from "./seed";
 import {
   ActivityItem,
@@ -28,6 +29,8 @@ import {
   WBSNode,
   Workspace,
   WorkspaceMeta,
+  UnifiedPlanInput,
+  PlannedTaskNodeInput,
 } from "./types";
 import { hydrateWorkspace, migrateLegacyAppStateToWorkspace, ensureResourceDefaults } from "./workspace-model";
 
@@ -35,6 +38,13 @@ const dataDir = path.resolve(process.cwd(), "data");
 const workspaceFile = path.join(dataDir, "workspace.json");
 const legacyStateFile = path.join(dataDir, "app-state.json");
 const uploadsDir = path.join(dataDir, "uploads");
+const mongoUri = process.env.MONGODB_URI || "mongodb://localhost:27017/";
+const mongoDbName = process.env.MONGODB_DB || "inframind";
+const mongoCollectionName = "workspaces";
+const mongoWorkspaceId = "primary";
+
+let mongoClient: MongoClient | null = null;
+let persistQueue: Promise<void> = Promise.resolve();
 
 function ensureDataDir() {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -49,47 +59,90 @@ function cloneState(state: AppState): AppState {
   return JSON.parse(JSON.stringify(state));
 }
 
-function writeWorkspaceToDisk(next: Workspace) {
-  ensureDataDir();
-  fs.writeFileSync(workspaceFile, JSON.stringify(next, null, 2), "utf8");
+async function getWorkspaceCollection() {
+  if (!mongoClient) {
+    mongoClient = new MongoClient(mongoUri, { serverSelectionTimeoutMS: 5000 });
+    await mongoClient.connect();
+  }
+  return mongoClient.db(mongoDbName).collection(mongoCollectionName);
 }
 
-function readWorkspaceFromDisk(): Workspace {
+async function saveWorkspaceToMongo(next: Workspace) {
+  const collection = await getWorkspaceCollection();
+  await collection.updateOne(
+    { _id: mongoWorkspaceId },
+    {
+      $set: {
+        workspace: next,
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    { upsert: true },
+  );
+}
+
+function queueWorkspacePersist(next: Workspace) {
+  const snapshot = cloneWorkspace(next);
+  persistQueue = persistQueue
+    .then(async () => {
+      await saveWorkspaceToMongo(snapshot);
+    })
+    .catch((error) => {
+      console.error("[store] MongoDB persist failed:", error);
+    });
+}
+
+async function loadWorkspaceFromMongoOrLegacy(): Promise<Workspace> {
   ensureDataDir();
+  try {
+    const collection = await getWorkspaceCollection();
+    const existing = await collection.findOne<{ workspace?: Workspace }>({ _id: mongoWorkspaceId });
+    if (existing?.workspace) {
+      const hydrated = hydrateWorkspace(existing.workspace);
+      if (hydrated.projects.length) {
+        return hydrated;
+      }
+    }
+  } catch (error) {
+    throw new Error(
+      `Unable to connect to MongoDB at ${mongoUri}. Ensure MongoDB is running and MONGODB_URI is correct.`,
+    );
+  }
+
   if (fs.existsSync(workspaceFile)) {
     try {
       const raw = JSON.parse(fs.readFileSync(workspaceFile, "utf8"));
       const hydrated = hydrateWorkspace(raw);
-      if (!hydrated.projects.length) {
-        const initial = buildEmptyWorkspace();
-        writeWorkspaceToDisk(initial);
-        return initial;
+      if (hydrated.projects.length) {
+        await saveWorkspaceToMongo(hydrated);
+        return hydrated;
       }
-      return hydrated;
     } catch {
-      const initial = buildEmptyWorkspace();
-      writeWorkspaceToDisk(initial);
-      return initial;
+      // Continue to legacy fallback.
     }
   }
+
   if (fs.existsSync(legacyStateFile)) {
     try {
       const legacy = JSON.parse(fs.readFileSync(legacyStateFile, "utf8")) as AppState;
       const migrated = migrateLegacyAppStateToWorkspace(legacy, [defaultWorkingCalendar()]);
-      writeWorkspaceToDisk(migrated);
+      await saveWorkspaceToMongo(migrated);
       return migrated;
     } catch {
-      const initial = buildEmptyWorkspace();
-      writeWorkspaceToDisk(initial);
-      return initial;
+      // Continue to empty workspace fallback.
     }
   }
+
   const initial = buildEmptyWorkspace();
-  writeWorkspaceToDisk(initial);
+  await saveWorkspaceToMongo(initial);
   return initial;
 }
 
-let workspace = readWorkspaceFromDisk();
+let workspace = buildEmptyWorkspace();
+
+export async function initializeStore() {
+  workspace = await loadWorkspaceFromMongoOrLegacy();
+}
 
 export function getUploadsDir() {
   ensureDataDir();
@@ -173,7 +226,7 @@ export function workspaceMeta(): WorkspaceMeta {
 
 export function saveWorkspace(next: Workspace) {
   workspace = { ...next, lastUpdatedAt: new Date().toISOString() };
-  writeWorkspaceToDisk(workspace);
+  queueWorkspacePersist(workspace);
   return getWorkspace();
 }
 
@@ -182,7 +235,7 @@ function updateWorkspace(mutator: (draft: Workspace) => void): AppState {
   mutator(draft);
   draft.lastUpdatedAt = new Date().toISOString();
   workspace = draft;
-  writeWorkspaceToDisk(workspace);
+  queueWorkspacePersist(workspace);
   return getState();
 }
 
@@ -213,7 +266,7 @@ function cleanUploads() {
 export function resetWorkspace() {
   cleanUploads();
   workspace = buildEmptyWorkspace();
-  writeWorkspaceToDisk(workspace);
+  queueWorkspacePersist(workspace);
   return getState();
 }
 
@@ -246,10 +299,11 @@ export function createProject(payload: Partial<ProjectInfo>, role: UserRole) {
       calId = w.calendars[0]!.id;
     }
     const base = cloneState(emptyState);
+    const projectName = payload.name ?? "New project";
     base.project = {
       ...base.project,
       id,
-      name: payload.name ?? "New project",
+      name: projectName,
       client: payload.client ?? "",
       location: payload.location ?? "",
       budget: payload.budget ?? "",
@@ -259,6 +313,17 @@ export function createProject(payload: Partial<ProjectInfo>, role: UserRole) {
       progress: 0,
       description: payload.description ?? "",
       calendarId: calId,
+    };
+    // Initialize WBS root node with project details
+    base.wbs = {
+      id: id,
+      code: "1",
+      name: projectName,
+      level: 0,
+      type: "project",
+      progress: 0,
+      status: "not_started",
+      children: [],
     };
     base.resources = [];
     base.tasks = [];
@@ -668,6 +733,52 @@ function refreshProjectProgress(draft: AppState) {
   );
 }
 
+function ymd(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function nextWorkingDay(dateYmd: string, cal: import("./types").WorkingCalendar): string {
+  let cursor = new Date(`${dateYmd}T12:00:00`);
+  // Move to next date first, then find first working day.
+  cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  while (!isWorkingDay(cursor, cal)) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return ymd(cursor);
+}
+
+function normalizeWbsCode(code: string) {
+  return code.replace(/\.0$/, "");
+}
+
+function nextTopLevelWbsIndex(root: WBSNode) {
+  const topLevel = (root.children ?? [])
+    .map((child) => normalizeWbsCode(child.code).split(".")[0])
+    .map((part) => Number(part))
+    .filter((value) => Number.isFinite(value));
+  return (topLevel.length ? Math.max(...topLevel) : 0) + 1;
+}
+
+function nextChildWbsIndex(parent: WBSNode) {
+  const parentCode = normalizeWbsCode(parent.code);
+  const expectedDepth = parentCode.split(".").length + 1;
+  const indexes = (parent.children ?? [])
+    .map((child) => normalizeWbsCode(child.code))
+    .map((code) => code.split("."))
+    .filter((parts) => parts.length === expectedDepth && parts.slice(0, -1).join(".") === parentCode)
+    .map((parts) => Number(parts.at(-1)))
+    .filter((value) => Number.isFinite(value));
+  return (indexes.length ? Math.max(...indexes) : 0) + 1;
+}
+
+function resolveProjectCalendar(projectCalendarId?: string) {
+  return (
+    (projectCalendarId ? workspace.calendars.find((cal) => cal.id === projectCalendarId) : undefined) ??
+    workspace.calendars[0] ??
+    defaultWorkingCalendar()
+  );
+}
+
 export function updateTask(
   taskId: string,
   updates: Partial<GanttTask>,
@@ -729,6 +840,223 @@ export function createTask(task: PartialTask, actorName: string, role: UserRole)
   });
 }
 
+export function createUnifiedPlan(payload: UnifiedPlanInput, actorName: string, role: UserRole) {
+  if (!canEditTasks(role)) {
+    throw new Error("You do not have permission to create plans.");
+  }
+  if (!payload.parentName?.trim()) {
+    throw new Error("Parent task name is required.");
+  }
+  if (!payload.startDate) {
+    throw new Error("Start date is required.");
+  }
+  if (!payload.children?.length) {
+    throw new Error("At least one child task is required.");
+  }
+
+  return updateState((draft) => {
+    const parentAnchor = findWbsNodeById(draft.wbs, payload.parentWbsId || draft.wbs.id);
+    if (!parentAnchor) throw new Error("Parent WBS node not found.");
+
+    const projectCalendar = resolveProjectCalendar(draft.project.calendarId);
+    const summaryNodeId = createId("wbs");
+    const summarySiblingIndex = parentAnchor.id === draft.wbs.id
+      ? nextTopLevelWbsIndex(parentAnchor)
+      : nextChildWbsIndex(parentAnchor);
+    const summaryBaseCode = normalizeWbsCode(parentAnchor.code);
+    const summaryCode =
+      parentAnchor.id === draft.wbs.id ? `${summarySiblingIndex}` : `${summaryBaseCode}.${summarySiblingIndex}`;
+    const summaryStart = payload.startDate;
+    const summaryDuration = Math.max(1, Number(payload.summaryDurationDays || 1));
+    const summaryEnd = addWorkingDays(summaryStart, summaryDuration, projectCalendar);
+
+    const summaryNode: WBSNode = {
+      id: summaryNodeId,
+      code: summaryCode,
+      name: payload.parentName.trim(),
+      level: parentAnchor.level + 1,
+      type: "work_package",
+      progress: 0,
+      status: "not_started",
+      children: [],
+    };
+    parentAnchor.children = [...(parentAnchor.children ?? []), summaryNode];
+
+    const resourceById = new Map(mergedActiveResources(draft).map((resource) => [resource.id, resource]));
+    const childTasks: GanttTask[] = [];
+    let previousTaskId: string | null = null;
+    let currentStart = summaryStart;
+    let lastChildEnd = summaryEnd;
+
+    payload.children.forEach((child, index) => {
+      const childDuration = Math.max(1, Number(child.durationDays || 1));
+      const childEnd = addWorkingDays(currentStart, childDuration, projectCalendar);
+      const childNodeId = createId("wbs");
+      const childNode: WBSNode = {
+        id: childNodeId,
+        code: `${summaryCode}.${index + 1}`,
+        name: child.name.trim() || `Task ${index + 1}`,
+        level: summaryNode.level + 1,
+        type: "task",
+        progress: 0,
+        status: child.status ?? "not_started",
+        children: [],
+      };
+      summaryNode.children = [...(summaryNode.children ?? []), childNode];
+
+      const assignedRes = child.assignedResourceId ? resourceById.get(child.assignedResourceId) : undefined;
+      const childTask: GanttTask = {
+        id: childNodeId,
+        activityId: childNodeId,
+        name: childNode.name,
+        start: currentStart,
+        end: childEnd,
+        progress: 0,
+        status: child.status ?? "not_started",
+        duration: childDuration,
+        durationUnit: "working_day",
+        dependencies: previousTaskId ? [previousTaskId] : [],
+        dependencyLagByPredecessor: {},
+        isMilestone: false,
+        isCritical: false,
+        assigned: assignedRes?.name ?? "Unassigned",
+        assignedResourceId: assignedRes?.id,
+        parentActivity: summaryNode.name,
+        wbsNodeId: childNodeId,
+      };
+      childTasks.push(childTask);
+      previousTaskId = childTask.id;
+      lastChildEnd = childEnd;
+      currentStart = nextWorkingDay(childEnd, projectCalendar);
+    });
+
+    const summaryTask: GanttTask = {
+      id: summaryNodeId,
+      activityId: summaryNodeId,
+      name: summaryNode.name,
+      start: summaryStart,
+      end: lastChildEnd,
+      progress: 0,
+      status: "not_started",
+      duration: summaryDuration,
+      durationUnit: "working_day",
+      dependencies: [],
+      dependencyLagByPredecessor: {},
+      isMilestone: false,
+      isCritical: false,
+      assigned: "Unassigned",
+      parentActivity: parentAnchor.name,
+      wbsNodeId: summaryNodeId,
+    };
+
+    draft.tasks.push(summaryTask, ...childTasks);
+    draft.allocations = buildAllocations(draft.tasks, mergedActiveResources(draft));
+    refreshProjectProgress(draft);
+
+    draft.activities.unshift({
+      id: createId("activity"),
+      action: "Unified plan created",
+      detail: `${summaryNode.name} with ${childTasks.length} child tasks created by ${actorName} (${role})`,
+      time: "just now",
+      user: actorName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
+export function createPlannedTaskNode(payload: PlannedTaskNodeInput, actorName: string, role: UserRole) {
+  if (!canEditTasks(role)) {
+    throw new Error("You do not have permission to create planned tasks.");
+  }
+  if (!payload.name?.trim()) {
+    throw new Error("Task name is required.");
+  }
+  return updateState((draft) => {
+    const resolvedParentId = payload.parentWbsId || draft.wbs.id;
+    const parent = findWbsNodeById(draft.wbs, resolvedParentId);
+    if (!parent) throw new Error("Parent WBS node not found.");
+    if (!payload.summary && !payload.parentWbsId) {
+      throw new Error("Parent WBS node is required for sub tasks.");
+    }
+
+    const cal = resolveProjectCalendar(draft.project.calendarId);
+    const durationDays = Math.max(1, Number(payload.durationDays || 1));
+    const predecessor = payload.predecessorTaskId
+      ? draft.tasks.find((task) => task.id === payload.predecessorTaskId)
+      : undefined;
+
+    const parentTask = draft.tasks.find(
+      (task) =>
+        task.id === parent.id ||
+        task.activityId === parent.id ||
+        task.wbsNodeId === parent.id,
+    );
+
+    const startDate =
+      predecessor?.end
+        ? nextWorkingDay(predecessor.end, cal)
+        : payload.startDate || parentTask?.start || new Date().toISOString().slice(0, 10);
+    const endDate = addWorkingDays(startDate, durationDays, cal);
+
+    const siblingCount = payload.summary && parent.id === draft.wbs.id
+      ? nextTopLevelWbsIndex(parent)
+      : nextChildWbsIndex(parent);
+    const nodeId = createId("wbs");
+    const baseCode = normalizeWbsCode(parent.code);
+    const nodeCode =
+      payload.summary && parent.id === draft.wbs.id ? `${siblingCount}` : `${baseCode}.${siblingCount}`;
+    const nodeType: WBSNode["type"] = payload.summary ? "work_package" : "task";
+    const node: WBSNode = {
+      id: nodeId,
+      code: nodeCode,
+      name: payload.name.trim(),
+      level: parent.level + 1,
+      type: nodeType,
+      progress: 0,
+      status: "not_started",
+      children: [],
+    };
+    parent.children = [...(parent.children ?? []), node];
+
+    const mergedResources = mergedActiveResources(draft);
+    const assignedResource = payload.assignedResourceId
+      ? mergedResources.find((resource) => resource.id === payload.assignedResourceId)
+      : undefined;
+
+    const task: GanttTask = {
+      id: nodeId,
+      activityId: nodeId,
+      name: node.name,
+      start: startDate,
+      end: endDate,
+      progress: 0,
+      status: "not_started",
+      duration: durationDays,
+      durationUnit: "working_day",
+      dependencies: predecessor ? [predecessor.id] : [],
+      dependencyLagByPredecessor: {},
+      isMilestone: false,
+      isCritical: false,
+      assigned: assignedResource?.name ?? "Unassigned",
+      assignedResourceId: assignedResource?.id,
+      parentActivity: parent.name,
+      wbsNodeId: nodeId,
+    };
+    draft.tasks.push(task);
+
+    draft.allocations = buildAllocations(draft.tasks, mergedResources);
+    refreshProjectProgress(draft);
+    draft.activities.unshift({
+      id: createId("activity"),
+      action: "Planned task created",
+      detail: `${node.code} ${node.name} created by ${actorName} (${role})`,
+      time: "just now",
+      user: actorName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
 export function updateWbsNode(
   nodeId: string,
   updates: Partial<Pick<WBSNode, "name" | "status" | "progress" | "type">>,
@@ -782,8 +1110,9 @@ export function createWbsNode(
     if (!parent) throw new Error("Parent WBS node not found.");
     const siblingCount = (parent.children ?? []).length + 1;
     const code = `${parent.code}.${siblingCount}`;
+    const nodeId = createId("wbs");
     const node: WBSNode = {
-      id: createId("wbs"),
+      id: nodeId,
       code,
       name: payload.name,
       level: parent.level + 1,
@@ -793,6 +1122,34 @@ export function createWbsNode(
       children: [],
     };
     parent.children = [...(parent.children ?? []), node];
+    
+    // Automatically create a corresponding task for Gantt Chart
+    // Only create task for work_package and task types (not for phase/deliverable)
+    if (payload.type === "work_package" || payload.type === "task") {
+      const today = new Date().toISOString().split('T')[0];
+      const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const newTask: GanttTask = {
+        id: nodeId, // Use same ID as WBS node for linking
+        activityId: nodeId,
+        name: payload.name,
+        start: today,
+        end: nextWeek,
+        progress: payload.progress,
+        status: payload.status,
+        duration: 7,
+        dependencies: [],
+        isMilestone: false,
+        isCritical: false,
+        assigned: "Unassigned",
+        parentActivity: parent.name,
+        wbsCode: code,
+      };
+      
+      draft.tasks.push(newTask);
+      draft.allocations = buildAllocations(draft.tasks, mergedActiveResources(draft));
+    }
+    
     draft.activities.unshift({
       id: createId("activity"),
       action: "WBS node created",
@@ -801,6 +1158,8 @@ export function createWbsNode(
       user: actorName,
       createdAt: new Date().toISOString(),
     });
+    
+    refreshProjectProgress(draft);
   });
 }
 
@@ -894,6 +1253,23 @@ export function applyDocumentAnalysis(
   artifacts: OpenAIArtifacts,
 ) {
   return updateState((draft) => {
+    const sourceDocument = draft.documents.find((document) => document.id === documentId);
+    const uploadTimestamp = sourceDocument?.uploadDate ? Date.parse(sourceDocument.uploadDate) : Number.NaN;
+    const hasManualStructureEditsAfterUpload =
+      Number.isFinite(uploadTimestamp) &&
+      draft.activities.some((activity) => {
+        const activityTimestamp = Date.parse(activity.createdAt);
+        if (!Number.isFinite(activityTimestamp) || activityTimestamp <= uploadTimestamp) {
+          return false;
+        }
+        return (
+          activity.action === "WBS node created" ||
+          activity.action === "WBS node updated" ||
+          activity.action === "Task created" ||
+          activity.action === "Task updated"
+        );
+      });
+
     const mergeDefined = <T extends Record<string, unknown>>(base: T, ...updates: Array<Partial<T> | undefined>) => {
       const next = { ...base };
       for (const update of updates) {
@@ -951,7 +1327,7 @@ export function applyDocumentAnalysis(
       ? artifacts.tasks.map(normalizeTask)
       : aggregate.tasks.map(normalizeTask);
 
-    if (nextTasks.length) {
+    if (nextTasks.length && !hasManualStructureEditsAfterUpload) {
       draft.tasks = nextTasks;
     }
 
@@ -971,7 +1347,9 @@ export function applyDocumentAnalysis(
     );
 
     draft.risks = mergeRisks(draft.risks, [...aggregate.risks, ...artifacts.risks]);
-    draft.wbs = artifacts.wbs;
+    if (!hasManualStructureEditsAfterUpload) {
+      draft.wbs = artifacts.wbs;
+    }
     draft.allocations = buildAllocations(draft.tasks, mergedActiveResources(draft));
 
     const latestInsights: InsightItem[] = [
@@ -1017,6 +1395,17 @@ export function applyDocumentAnalysis(
       user: "OpenAI",
       createdAt: new Date().toISOString(),
     });
+
+    if (hasManualStructureEditsAfterUpload) {
+      draft.activities.unshift({
+        id: createId("activity"),
+        action: "AI merge safeguarded",
+        detail: "Skipped replacing manually edited WBS/tasks to prevent data loss after delayed processing.",
+        time: "just now",
+        user: "System",
+        createdAt: new Date().toISOString(),
+      });
+    }
 
     draft.activities = draft.activities
       .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))

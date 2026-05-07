@@ -18,7 +18,8 @@ import {
   Search,
   Grid,
   List,
-  RefreshCw
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 import { api, getDocumentPreviewUrl } from '@/lib/api';
@@ -40,15 +41,13 @@ export default function DocumentUpload() {
   const getFileIcon = (type: string) => {
     switch (type) {
       case 'pdf':
-        return <FileText className="w-8 h-8 text-red-500" />;
+        return <div className="p-2 bg-red-50 rounded-lg"><FileText className="w-5 h-5 text-red-500" /></div>;
       case 'excel':
-        return <FileSpreadsheet className="w-8 h-8 text-green-500" />;
+        return <div className="p-2 bg-green-50 rounded-lg"><FileSpreadsheet className="w-5 h-5 text-green-600" /></div>;
       case 'image':
-        return <Image className="w-8 h-8 text-blue-500" />;
-      case 'word':
-        return <FileText className="w-8 h-8 text-blue-600" />;
+        return <div className="p-2 bg-blue-50 rounded-lg"><Image className="w-5 h-5 text-blue-500" /></div>;
       default:
-        return <File className="w-8 h-8 text-gray-500" />;
+        return <div className="p-2 bg-gray-50 rounded-lg"><File className="w-5 h-5 text-gray-500" /></div>;
     }
   };
 
@@ -56,34 +55,32 @@ export default function DocumentUpload() {
     switch (status) {
       case 'completed':
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-[#f0f9f8] text-[#12b3a8] text-[11px] font-bold uppercase tracking-wider rounded-lg">
             <CheckCircle className="w-3 h-3" />
-            Completed
+            Complete
           </span>
         );
       case 'processing':
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-600 text-[11px] font-bold uppercase tracking-wider rounded-lg">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Processing {progress ? `${progress}%` : ''}
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
-            <Clock className="w-3 h-3" />
-            Pending
+            {progress ? `${progress}%` : 'Syncing'}
           </span>
         );
       case 'failed':
         return (
-          <span className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-500 text-[11px] font-bold uppercase tracking-wider rounded-lg">
             <AlertTriangle className="w-3 h-3" />
-            Failed
+            Error
           </span>
         );
       default:
-        return null;
+        return (
+          <span className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 text-gray-400 text-[11px] font-bold uppercase tracking-wider rounded-lg">
+            <Clock className="w-3 h-3" />
+            Pending
+          </span>
+        );
     }
   };
 
@@ -118,159 +115,86 @@ export default function DocumentUpload() {
     }
   };
 
-  const handleReprocess = async (docId: string) => {
-    setIsProcessing(true);
-    try {
-      await reprocessDocument(docId);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDelete = async (docId: string) => {
-    await deleteDocument(docId);
-  };
-
-  const handleAIGenerate = async () => {
-    setIsProcessing(true);
-    try {
-      await generateArtifacts();
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const filteredDocuments = documents.filter(doc =>
     doc.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 p-1">
+      {/* Header Area */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Document Management</h1>
-          <p className="text-gray-500">Upload and process project documents with AI</p>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Document Management</h1>
+          <p className="text-gray-500 text-sm mt-1 font-medium">Upload project source files for AI data extraction</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <button
-            onClick={async () => {
-              setIsProcessing(true);
-              try {
-                await resetWorkspace();
-              } finally {
-                setIsProcessing(false);
-              }
-            }}
-            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            disabled={isProcessing}
-            title="Clear all documents and artifacts"
+            onClick={() => resetWorkspace()}
+            className="px-4 py-2 bg-white border border-gray-200 text-red-500 text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-red-50 transition-all shadow-sm"
           >
-            Reset Workspace
-          </button>
-          <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export Data
-          </button>
-          <button
-            onClick={handleAIGenerate}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2"
-            disabled={isProcessing}
-          >
-            <Sparkles className={`w-4 h-4 ${isProcessing ? "animate-pulse" : ""}`} />
-            {isProcessing ? "Generating..." : "AI Generate WBS"}
+            Reset
           </button>
           <button
             onClick={async () => {
               setAiCheck(null);
-              try {
-                const result = await api.aiPing();
-                setAiCheck({
-                  ok: Boolean(result.ok),
-                  message: result.ok ? "OpenAI OK (ping success)." : `OpenAI error: ${result.error || "unknown error"}`,
-                });
-              } catch (e) {
-                setAiCheck({ ok: false, message: e instanceof Error ? e.message : "AI ping failed" });
-              }
+              const result = await api.aiPing();
+              setAiCheck({ ok: !!result.ok, message: result.ok ? "Connected" : "Error" });
             }}
-            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 bg-white border border-gray-200 text-[#0f3433] text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2"
           >
+            <Database className="w-3.5 h-3.5" />
             Check AI
+          </button>
+          <button
+            onClick={generateArtifacts}
+            disabled={isProcessing}
+            className="px-5 py-2.5 bg-[#12b3a8] text-white text-xs font-bold uppercase tracking-[1.5px] rounded-xl hover:bg-[#0e9188] transition-all shadow-sm flex items-center gap-2"
+          >
+            <Sparkles className={`w-4 h-4 ${isProcessing ? "animate-pulse" : ""}`} />
+            {isProcessing ? "Processing..." : "Generate Artifacts"}
           </button>
         </div>
       </div>
 
+      {/* Processing Status Panel */}
       {(processingDocs.length > 0 || failedDocs.length > 0) && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <h3 className="font-semibold text-gray-900 mb-2">AI Processing Status</h3>
-          {processingDocs.length > 0 && (
-            <div className="space-y-3">
-              {processingDocs.slice(0, 3).map((doc) => (
-                <div key={doc.id} className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-blue-900 truncate">{doc.name}</p>
-                    <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
-                      {doc.currentStage || doc.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-blue-800 mt-1">
-                    {doc.currentPage ? `Page ${doc.currentPage}/${doc.pageCount ?? "?"}` : `Progress: ${doc.progress ?? 0}%`}
-                  </p>
-                  {doc.lastMessage && <p className="text-xs text-blue-700 mt-1">{doc.lastMessage}</p>}
-                </div>
-              ))}
-              <p className="text-xs text-gray-500">
-                Refreshing automatically while documents are processing. WBS/Gantt updates once ingestion completes.
-              </p>
+        <div className="bg-white rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 p-6 flex flex-wrap gap-4">
+          {processingDocs.map((doc) => (
+            <div key={doc.id} className="flex items-center gap-3 bg-[#f0f9f8] px-4 py-3 rounded-xl border border-[#e0f2f1]">
+              <Loader2 className="w-4 h-4 text-[#12b3a8] animate-spin" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-[#0f3433] truncate max-w-[150px]">{doc.name}</p>
+                <p className="text-[9px] font-extrabold text-[#12b3a8] uppercase tracking-tighter">Parsing Schedule...</p>
+              </div>
             </div>
-          )}
-          {failedDocs.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {failedDocs.slice(0, 2).map((doc) => (
-                <div key={doc.id} className="p-3 rounded-lg bg-red-50 border border-red-100">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-red-900 truncate">{doc.name}</p>
-                    <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-1 rounded-full">failed</span>
-                  </div>
-                  <p className="text-xs text-red-700 mt-1">{doc.error || doc.lastMessage || "Unknown parsing error"}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
       )}
 
-      {latestActivity && (
-        <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 text-sm text-gray-700">
-          <span className="font-semibold">Latest activity:</span> {latestActivity.action} — {latestActivity.detail}
-        </div>
-      )}
-
-      {aiCheck && (
-        <div className={`rounded-xl border p-4 text-sm ${aiCheck.ok ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
-          <span className="font-semibold">{aiCheck.ok ? 'AI Connectivity' : 'AI Connectivity Issue'}:</span> {aiCheck.message}
-        </div>
-      )}
-
+      {/* Upload Dropzone - Reference Theme */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+        className={`relative border-2 border-dashed rounded-[32px] p-12 transition-all duration-300 group ${
           isDragging
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+            ? 'border-[#12b3a8] bg-[#f0f9f8] scale-[1.01]'
+            : 'border-gray-200 hover:border-[#12b3a8] hover:bg-gray-50'
         }`}
       >
-        <div className="flex flex-col items-center">
-          <div className={`p-4 rounded-full ${isDragging ? 'bg-blue-100' : 'bg-gray-100'}`}>
-            <Upload className={`w-8 h-8 ${isDragging ? 'text-blue-600' : 'text-gray-500'}`} />
+        <div className="flex flex-col items-center text-center">
+          <div className={`w-20 h-20 rounded-3xl flex items-center justify-center transition-all duration-500 mb-6 ${
+            isDragging ? 'bg-[#12b3a8] text-white shadow-xl' : 'bg-gray-100 text-gray-400 group-hover:bg-[#f0f9f8] group-hover:text-[#12b3a8]'
+          }`}>
+            <Upload className="w-8 h-8" />
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            {isDragging ? 'Drop files here' : 'Drag & drop files here'}
+          <h3 className="text-xl font-bold text-[#0f3433]">
+            {isDragging ? 'Drop your files now' : 'Upload source documents'}
           </h3>
-          <p className="mt-2 text-sm text-gray-500">
-            or click to browse from your computer
+          <p className="mt-2 text-sm text-gray-500 font-medium max-w-sm">
+            Drag and drop your PDF schedules, Excel WBS, or project site images to start AI ingestion.
           </p>
+          
           <input
             type="file"
             multiple
@@ -281,131 +205,92 @@ export default function DocumentUpload() {
           />
           <label
             htmlFor="file-upload"
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+            className="mt-8 px-8 py-3 bg-[#0f3433] text-white text-sm font-bold rounded-xl cursor-pointer hover:bg-black transition-all shadow-lg active:scale-95"
           >
-            Select Files
+            Browse Files
           </label>
-          <p className="mt-4 text-xs text-gray-400">
-            Supported formats: PDF, Excel (.xlsx, .xls), Word (.docx), Images (.png, .jpg)
-          </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Documents Explorer Card */}
+      <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+        {/* Toolbar */}
+        <div className="p-5 border-b border-gray-50 flex items-center justify-between bg-white">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#12b3a8]" />
               <input
                 type="text"
-                placeholder="Search documents..."
+                placeholder="Find document..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl w-64 text-sm font-medium focus:ring-2 focus:ring-[#12b3a8]/20 transition-all"
               />
             </div>
-            <button className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <Filter className="w-4 h-4" />
-              Filter
-            </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 p-1 bg-gray-50 rounded-xl border border-gray-100">
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-[#12b3a8]' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              <List className="w-5 h-5" />
+              <List className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'
-              }`}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-[#12b3a8]' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              <Grid className="w-5 h-5" />
+              <Grid className="w-4 h-4" />
             </button>
           </div>
         </div>
 
+        {/* Content Section */}
         {viewMode === 'list' ? (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Document</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Size</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Parsed Data</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Filename</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Format</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {filteredDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
+                  <tr key={doc.id} className="hover:bg-gray-50/80 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
                         {getFileIcon(doc.type)}
-                        <span className="text-sm font-medium text-gray-900">{doc.name}</span>
+                        <span className="text-sm font-bold text-[#0f3433]">{doc.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-600 uppercase">{doc.type}</span>
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-gray-400 uppercase">{doc.type}</span>
                     </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-600">{doc.size}</span>
-                    </td>
-                    <td className="px-4 py-4">
+                    <td className="px-6 py-4">
                       {getStatusBadge(doc.status, doc.progress)}
                     </td>
-                    <td className="px-4 py-4">
-                      {doc.parsedData ? (
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded">
-                            {doc.parsedData.tasksExtracted} tasks
-                          </span>
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
-                            {doc.parsedData.resourcesFound} resources
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-600">
-                        {new Date(doc.uploadDate).toLocaleDateString()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-1">
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <a
-                          href={getDocumentPreviewUrl(doc) || undefined}
+                          href={getDocumentPreviewUrl(doc) || "#"}
                           target="_blank"
-                          rel="noreferrer"
-                          className={`p-2 rounded-lg transition-colors ${getDocumentPreviewUrl(doc) ? 'hover:bg-gray-100' : 'opacity-40 pointer-events-none'}`}
-                          title="View"
+                          className="p-2 text-gray-400 hover:text-[#12b3a8] transition-colors"
                         >
-                          <Eye className="w-4 h-4 text-gray-500" />
+                          <Eye className="w-4 h-4" />
                         </a>
-                        {doc.status !== 'processing' && (
-                          <button
-                            onClick={() => handleReprocess(doc.id)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Reprocess"
-                          >
-                            <RefreshCw className="w-4 h-4 text-gray-500" />
-                          </button>
-                        )}
                         <button
-                          onClick={() => handleDelete(doc.id)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
+                          onClick={() => reprocessDocument(doc.id)}
+                          className="p-2 text-gray-400 hover:text-[#0f3433]"
                         >
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteDocument(doc.id)}
+                          className="p-2 text-red-300 hover:text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -415,57 +300,40 @@ export default function DocumentUpload() {
             </table>
           </div>
         ) : (
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {filteredDocuments.map((doc) => (
-              <div key={doc.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {getFileIcon(doc.type)}
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 truncate max-w-48">{doc.name}</p>
-                      <p className="text-xs text-gray-500">{doc.size}</p>
-                    </div>
-                  </div>
+              <div key={doc.id} className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-[#12b3a8] transition-all hover:shadow-md group">
+                <div className="flex items-start justify-between mb-4">
+                  {getFileIcon(doc.type)}
                   {getStatusBadge(doc.status, doc.progress)}
                 </div>
+                <p className="text-sm font-bold text-[#0f3433] truncate mb-1">{doc.name}</p>
+                <p className="text-[10px] text-gray-400 font-bold uppercase mb-4">{doc.size}</p>
+                
                 {doc.parsedData && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-lg font-bold text-gray-900">{doc.parsedData.tasksExtracted}</p>
-                        <p className="text-xs text-gray-500">Tasks</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-gray-900">{doc.parsedData.resourcesFound}</p>
-                        <p className="text-xs text-gray-500">Resources</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-gray-900">{doc.parsedData.milestonesIdentified}</p>
-                        <p className="text-xs text-gray-500">Milestones</p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className="bg-[#f0f9f8] p-2 rounded-xl text-center">
+                      <p className="text-sm font-extrabold text-[#12b3a8]">{doc.parsedData.tasksExtracted}</p>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">Tasks</p>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded-xl text-center">
+                      <p className="text-sm font-extrabold text-[#0f3433]">{doc.parsedData.resourcesFound}</p>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase">People</p>
                     </div>
                   </div>
                 )}
-                <div className="mt-4 flex items-center gap-2">
+
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
                   <a
-                    href={getDocumentPreviewUrl(doc) || undefined}
+                    href={getDocumentPreviewUrl(doc) || "#"}
                     target="_blank"
-                    rel="noreferrer"
-                    className={`flex-1 py-2 text-sm text-center rounded-lg transition-colors ${getDocumentPreviewUrl(doc) ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 bg-gray-50 pointer-events-none'}`}
+                    className="flex-1 py-2 text-[11px] font-extrabold text-center text-gray-400 bg-gray-50 rounded-lg hover:bg-[#12b3a8] hover:text-white transition-all uppercase"
                   >
                     View
                   </a>
-                  {doc.status !== 'processing' && (
-                    <button
-                      onClick={() => handleReprocess(doc.id)}
-                      className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                  )}
                   <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    onClick={() => deleteDocument(doc.id)}
+                    className="p-2 text-red-300 hover:text-red-500"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -476,22 +344,23 @@ export default function DocumentUpload() {
         )}
       </div>
 
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold mb-2">AI Document Processing</h3>
-            <p className="text-blue-100 text-sm">
-              Our AI engine automatically extracts tasks, resources, milestones, and dependencies from your project documents.
-            </p>
-          </div>
-          <button
-            onClick={handleAIGenerate}
-            className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2"
-          >
-            <Sparkles className="w-5 h-5" />
-            Generate WBS from Documents
-          </button>
+      {/* Footer Insight Section */}
+      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
+        <div className="relative z-10 text-center md:text-left">
+          <h3 className="text-2xl font-bold mb-2 tracking-tight">AI Schedule Intelligence</h3>
+          <p className="text-[#a0c4c2] text-sm max-w-lg font-medium leading-relaxed">
+            Our engine decomposes multi-page PDF schedules into structured WBS graphs. Click Generate to sync the latest extractions to the project timeline.
+          </p>
         </div>
+        <button
+          onClick={generateArtifacts}
+          className="relative z-10 px-8 py-4 bg-[#12b3a8] text-white font-bold rounded-2xl hover:bg-[#0e9188] transition-all shadow-xl active:scale-95 flex items-center gap-3"
+        >
+          <Sparkles className="w-5 h-5" />
+          Sync AI Generation
+        </button>
+        {/* Decorative background element */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
       </div>
     </div>
   );
