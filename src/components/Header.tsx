@@ -77,21 +77,25 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
   };
 
   return (
-    <header className="bg-white border-b border-gray-100 px-8 py-5">
-      <div className="flex items-center justify-between gap-6">
-        {/* Left Side: Project Info & Management */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3 mb-1.5">
-            <h2 className="text-2xl font-bold text-[#0f3433] tracking-tight truncate">
-              {projectName}
-            </h2>
-            
+    <header className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
+        {/* Left: title + subtitle + controls (wrap so nothing overlaps the toolbar) */}
+        <div className="min-w-0 flex-1 space-y-2">
+          <h2 className="text-2xl sm:text-[26px] font-bold text-[#0f3433] tracking-tight truncate" title={projectName}>
+            {projectName}
+          </h2>
+          <p className="text-[12px] sm:text-[13px] text-gray-400 font-bold uppercase tracking-wider">
+            Delivery Workspace •{" "}
+            <span className="text-[#12b3a8]">{projectLocation || "Global Operations"}</span>
+          </p>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
             {projects.length > 0 && (
               <select
                 value={activeId}
                 disabled={busy}
                 onChange={(e) => void handleActivate(e.target.value)}
-                className="text-[13px] border border-gray-200 rounded-xl px-3 py-1.5 bg-gray-50/50 font-semibold text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:border-[#12b3a8] outline-none transition-all cursor-pointer"
+                className="min-w-0 max-w-full sm:max-w-md lg:max-w-xl flex-1 sm:flex-none text-[14px] border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50 font-semibold text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:border-[#12b3a8] outline-none transition-all cursor-pointer truncate"
+                title={projects.find((p) => p.id === activeId)?.name}
               >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -102,22 +106,22 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
             )}
 
             {canManageProjects && (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowProjModal(true)}
-                  className="p-1.5 rounded-lg bg-[#f0f9f8] text-[#12b3a8] hover:bg-[#12b3a8] hover:text-white transition-all"
+                  className="p-1.5 rounded-lg bg-[#f0f9f8] text-[#12b3a8] hover:bg-[#12b3a8] hover:text-white transition-all shrink-0"
                   title="New Project"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
-                
+
                 {projects.length > 1 && activeId && (
                   <button
                     type="button"
                     onClick={() => void handleDelete(activeId)}
                     disabled={busy}
-                    className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                    className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shrink-0"
                     title="Delete Active"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -127,76 +131,82 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
                 <button
                   type="button"
                   onClick={openCalendarEditor}
-                  className="flex items-center gap-2 text-[12px] px-3 py-1.5 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-all"
+                  className="flex items-center gap-2 text-[13px] px-3 py-2 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-all whitespace-nowrap shrink-0"
                 >
-                  <Calendar className="w-3.5 h-3.5" />
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
                   Work Week
                 </button>
               </div>
             )}
           </div>
-          <p className="text-[12px] text-gray-400 font-bold uppercase tracking-wider mt-1.5">
-            Delivery Workspace • <span className="text-[#12b3a8]">{projectLocation || "Global Operations"}</span>
-          </p>
         </div>
 
-        {/* Right Side: Search & Actions */}
-        <div className="flex items-center gap-5 shrink-0">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#12b3a8] transition-colors" />
+        {/* Right: search + actions — own row on smaller widths, never collapses into project row */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:justify-start xl:flex-nowrap shrink-0 xl:pt-1 border-t border-gray-50 pt-3 xl:border-t-0 xl:pt-0">
+          <div className="relative group w-full sm:w-auto sm:min-w-[220px] lg:min-w-[260px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400 group-focus-within:text-[#12b3a8] transition-colors" />
             <input
               type="text"
               placeholder="Search data..."
-              className="pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl w-60 focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all text-sm font-medium text-gray-700"
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all text-base font-medium text-gray-700"
             />
           </div>
 
-          <div className="flex items-center gap-1 border-r border-gray-100 pr-5">
-            <button
-              onClick={onRefresh}
-              className="p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-all"
-              title="Refresh"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-
-            <button className="relative p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-all">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#12b3a8] rounded-full border-2 border-white"></span>
-            </button>
-
-            <button className="p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-all">
-              <Settings className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* User Profile Section */}
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden md:block">
-              <input
-                value={userName}
-                onChange={(e) => setActor(userRole, e.target.value || "USER")}
-                className="block text-sm font-bold text-[#0f3433] bg-transparent border-none p-0 text-right focus:ring-0 w-24"
-              />
-              <select
-                value={userRole}
-                onChange={(e) => setActor(e.target.value as UserRole, userName)}
-                className="block text-[10px] text-gray-400 font-extrabold uppercase tracking-widest bg-transparent border-none p-0 text-right focus:ring-0 appearance-none cursor-pointer hover:text-[#12b3a8]"
+          <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-1">
+            <div className="flex items-center gap-0.5 border-r border-gray-100 pr-3 sm:pr-4">
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-all"
+                title="Refresh"
               >
-                <option value="admin">System Admin</option>
-                <option value="manager">Manager</option>
-                <option value="member">Member</option>
-                <option value="viewer">Viewer</option>
-              </select>
+                <RefreshCw className="w-5 h-5" />
+              </button>
+
+              <button
+                type="button"
+                className="relative p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-all"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full border-2 border-white bg-[#12b3a8]" />
+              </button>
+
+              <button
+                type="button"
+                className="p-2.5 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-[#0f3433] transition-all"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
             </div>
-            <div className="w-10 h-10 bg-[#0f3433] rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-sm">
-              {(userName || "US")
-                .split(" ")
-                .filter(Boolean)
-                .map((part) => part[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
+
+            <div className="flex items-center gap-3 pl-1">
+              <div className="hidden text-right md:block">
+                <input
+                  value={userName}
+                  onChange={(e) => setActor(userRole, e.target.value || "USER")}
+                  className="block max-w-[140px] truncate border-none bg-transparent p-0 text-right text-[15px] font-bold text-[#0f3433] focus:ring-0 lg:max-w-[180px]"
+                  title={userName}
+                />
+                <select
+                  value={userRole}
+                  onChange={(e) => setActor(e.target.value as UserRole, userName)}
+                  className="block cursor-pointer appearance-none border-none bg-transparent p-0 text-right text-[11px] font-extrabold uppercase tracking-widest text-gray-400 hover:text-[#12b3a8] focus:ring-0"
+                >
+                  <option value="admin">System Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="member">Member</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0f3433] text-xs font-bold text-white shadow-sm">
+                {(userName || "US")
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((part) => part[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </div>
             </div>
           </div>
         </div>
@@ -204,7 +214,7 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
 
       {/* Modal - Themed */}
       {showProjModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f3433]/20 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f3433]/35 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 border border-gray-100">
             <h3 className="text-lg font-bold text-[#0f3433] mb-4">Create Project</h3>
             <input

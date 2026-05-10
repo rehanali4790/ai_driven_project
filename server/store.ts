@@ -17,7 +17,11 @@ import {
   InsightItem,
   Milestone,
   OpenAIArtifacts,
+  InventoryItem,
+  InventoryAllocationItem,
+  InventoryAllocationInput,
   PartialMilestone,
+  PartialInventory,
   PartialResource,
   PartialTask,
   ProjectInfo,
@@ -191,12 +195,15 @@ export function buildMergedAppState(ws: Workspace): AppState {
   } catch {
     /* invalid dependency graph */
   }
+  const { nextWbs, projectProgress } = applyTaskProgressToWbsAndProject(record.state, tasks);
   const allocations = buildAllocations(tasks, mergedResources);
   const calId = record.calendarId ?? record.state.project.calendarId;
   return {
     ...record.state,
+    wbs: nextWbs,
     project: {
       ...record.state.project,
+      progress: projectProgress,
       calendarId: calId ?? record.state.project.calendarId,
     },
     resources: mergedResources,
@@ -667,6 +674,30 @@ function mergedActiveResources(draft: AppState): ResourceItem[] {
   ];
 }
 
+function normalizeInventory(inventory: PartialInventory): InventoryItem {
+  const quantity = Math.max(0, Number(inventory.quantity ?? 0));
+  const singleUnitPrice =
+    inventory.singleUnitPrice !== undefined
+      ? Math.max(0, Number(inventory.singleUnitPrice))
+      : inventory.bulkPrice !== undefined && quantity > 0
+        ? Math.max(0, Number(inventory.bulkPrice)) / quantity
+        : 0;
+  const bulkPrice =
+    inventory.bulkPrice !== undefined
+      ? Math.max(0, Number(inventory.bulkPrice))
+      : Math.max(0, singleUnitPrice * quantity);
+  return {
+    id: inventory.id ?? createId("inv"),
+    name: inventory.name.trim(),
+    category: inventory.category === "equipment" ? "equipment" : "material",
+    quantity,
+    singleUnitPrice,
+    bulkPrice,
+    unit: inventory.unit.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function upsertResource(resource: PartialResource, role: UserRole) {
   const scope = resource.scope ?? "project";
   if (scope === "global" && !canManageProjects(role)) {
@@ -696,6 +727,159 @@ export function upsertResource(resource: PartialResource, role: UserRole) {
   });
 }
 
+export function addInventoryUnit(rawUnit: string, actorName: string, role: UserRole) {
+  if (!canEditTasks(role)) {
+    throw new Error("You do not have permission to manage measurement units.");
+  }
+  const unit = rawUnit.trim();
+  if (!unit) throw new Error("Unit name is required.");
+  if (unit.length > 48) throw new Error("Unit name is too long (max 48 characters).");
+  const snapshot = getState();
+  if (snapshot.inventoryUnits.some((u) => u.toLowerCase() === unit.toLowerCase())) {
+    throw new Error(`Unit "${unit}" already exists.`);
+  }
+  return updateState((draft) => {
+    draft.inventoryUnits.push(unit);
+    draft.inventoryUnits = draft.inventoryUnits
+      .map((u) => u.trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+    draft.activities.unshift({
+      id: createId("activity"),
+      action: "Unit added",
+      detail: `${actorName} added measurement unit "${unit}"`,
+      time: "just now",
+      user: actorName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
+export function removeInventoryUnit(rawUnit: string, actorName: string, role: UserRole) {
+  if (!canEditTasks(role)) {
+    throw new Error("You do not have permission to manage measurement units.");
+  }
+  const unit = rawUnit.trim();
+  if (!unit) throw new Error("Unit name is required.");
+  const snapshot = getState();
+  const inUse = snapshot.inventories.some(
+    (inv) => inv.unit.trim().toLowerCase() === unit.toLowerCase(),
+  );
+  if (inUse) {
+    throw new Error(`Cannot remove "${unit}" while inventory items still use this unit.`);
+  }
+  return updateState((draft) => {
+    draft.inventoryUnits = draft.inventoryUnits.filter((u) => u.toLowerCase() !== unit.toLowerCase());
+    if (!draft.inventoryUnits.length) {
+      draft.inventoryUnits = ["unit", "kg", "litre", "meter", "box"];
+    }
+    draft.activities.unshift({
+      id: createId("activity"),
+      action: "Unit removed",
+      detail: `${actorName} removed measurement unit "${unit}"`,
+      time: "just now",
+      user: actorName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
+export function upsertInventory(inventory: PartialInventory, actorName: string, role: UserRole) {
+  if (!canEditTasks(role)) {
+    throw new Error("You do not have permission to manage inventory.");
+  }
+  return updateState((draft) => {
+    const normalized = normalizeInventory(inventory);
+    const existingIndex = draft.inventories.findIndex((item) => item.id === normalized.id);
+    if (existingIndex >= 0) {
+      draft.inventories[existingIndex] = normalized;
+    } else {
+      draft.inventories.unshift(normalized);
+    }
+    if (normalized.unit && !draft.inventoryUnits.some((unit) => unit.toLowerCase() === normalized.unit.toLowerCase())) {
+      draft.inventoryUnits.push(normalized.unit);
+      draft.inventoryUnits = draft.inventoryUnits
+        .map((unit) => unit.trim())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
+    }
+    const inventoryResourceType = normalized.category === "equipment" ? "equipment" : "material";
+    const existingInventoryResource = draft.resources.find(
+      (resource) =>
+        resource.type === inventoryResourceType &&
+        resource.name.toLowerCase() === normalized.name.toLowerCase(),
+    );
+    draft.resources = mergeResources(
+      draft.resources,
+      [
+        {
+          id: existingInventoryResource?.id,
+          name: normalized.name,
+          role:
+            normalized.category === "equipment"
+              ? "Asset / Equipment Inventory"
+              : "Material Supply Inventory",
+          type: inventoryResourceType,
+          capacity: normalized.quantity,
+          allocated: 0,
+          status: "available",
+          costRate: normalized.singleUnitPrice ?? 0,
+          scope: "project",
+          skills: [`unit:${normalized.unit}`],
+          email: "",
+        },
+      ],
+      draft.project.id,
+    );
+    draft.allocations = buildAllocations(draft.tasks, mergedActiveResources(draft));
+    draft.activities.unshift({
+      id: createId("activity"),
+      action: "Inventory updated",
+      detail: `${normalized.name} inventory saved by ${actorName} (${role})`,
+      time: "just now",
+      user: actorName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
+export function allocateInventory(payload: InventoryAllocationInput, actorName: string, role: UserRole) {
+  if (!canEditTasks(role)) {
+    throw new Error("You do not have permission to allocate inventory.");
+  }
+  return updateState((draft) => {
+    const quantity = Math.max(1, Number(payload.quantity || 0));
+    const inventory = draft.inventories.find((item) => item.id === payload.inventoryId);
+    if (!inventory) throw new Error("Inventory item not found.");
+    const resource = mergedActiveResources(draft).find((item) => item.id === payload.resourceId && item.type === "person");
+    if (!resource) throw new Error("Human resource not found.");
+    const task = draft.tasks.find((item) => item.id === payload.taskId || item.activityId === payload.taskId || item.wbsNodeId === payload.taskId);
+    if (!task) throw new Error("Task not found for allocation.");
+    if (inventory.quantity < quantity) {
+      throw new Error(`Only ${inventory.quantity} ${inventory.unit} available in stock.`);
+    }
+    inventory.quantity -= quantity;
+    inventory.updatedAt = new Date().toISOString();
+    const allocation: InventoryAllocationItem = {
+      id: createId("inv-alloc"),
+      inventoryId: inventory.id,
+      resourceId: resource.id,
+      taskId: task.id,
+      quantity,
+      createdAt: new Date().toISOString(),
+    };
+    draft.inventoryAllocations.unshift(allocation);
+    draft.activities.unshift({
+      id: createId("activity"),
+      action: "Inventory allocated",
+      detail: `${quantity} ${inventory.unit} of ${inventory.name} allocated to ${resource.name} for task ${task.name}.`,
+      time: "just now",
+      user: actorName,
+      createdAt: new Date().toISOString(),
+    });
+  });
+}
+
 function canEditTasks(role: UserRole) {
   return role !== "viewer";
 }
@@ -714,6 +898,7 @@ function syncTaskToWbs(task: GanttTask, wbs: WBSNode) {
   const target = walkWbs(wbs).find((node) => {
     if (node.type !== "task" && node.type !== "work_package") return false;
     return (
+      (task.wbsNodeId && node.id === task.wbsNodeId) ||
       node.id === task.id ||
       node.code === task.id ||
       (task.activityId && (node.id === task.activityId || node.code === task.activityId)) ||
@@ -726,11 +911,44 @@ function syncTaskToWbs(task: GanttTask, wbs: WBSNode) {
   target.status = task.status;
 }
 
+function statusFromProgress(progress: number): TaskStatus {
+  if (progress >= 100) return "completed";
+  if (progress > 0) return "in_progress";
+  return "not_started";
+}
+
+function rollupWbsProgress(node: WBSNode): number {
+  const children = node.children ?? [];
+  if (!children.length) {
+    node.progress = Math.max(0, Math.min(100, node.progress ?? 0));
+    node.status = statusFromProgress(node.progress);
+    return node.progress;
+  }
+  const childProgresses = children.map((child) => rollupWbsProgress(child));
+  const avg = Math.round(
+    childProgresses.reduce((sum, progress) => sum + progress, 0) / Math.max(childProgresses.length, 1),
+  );
+  node.progress = Math.max(0, Math.min(100, avg));
+  node.status = statusFromProgress(node.progress);
+  return node.progress;
+}
+
 function refreshProjectProgress(draft: AppState) {
+  rollupWbsProgress(draft.wbs);
   if (!draft.tasks.length) return;
   draft.project.progress = Math.round(
     draft.tasks.reduce((sum, task) => sum + task.progress, 0) / draft.tasks.length,
   );
+}
+
+function applyTaskProgressToWbsAndProject(baseState: AppState, tasks: GanttTask[]) {
+  const nextWbs: WBSNode = JSON.parse(JSON.stringify(baseState.wbs));
+  tasks.forEach((task) => syncTaskToWbs(task, nextWbs));
+  rollupWbsProgress(nextWbs);
+  const projectProgress = tasks.length
+    ? Math.round(tasks.reduce((sum, task) => sum + task.progress, 0) / tasks.length)
+    : 0;
+  return { nextWbs, projectProgress };
 }
 
 function ymd(date: Date) {

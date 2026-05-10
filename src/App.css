@@ -3,13 +3,74 @@
 @tailwind utilities;
 
 @layer base {
+  /* Sharper UI text (esp. Windows): avoid optimizeLegibility (odd ligatures / "split" glyphs)
+     and avoid forcing grayscale antialias (thins strokes / looks blurry on LCD). */
   html {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* Slightly larger base (~6%) so Tailwind rem scale reads clearer */
+    font-size: 17px;
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
+    text-rendering: auto;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gray-50 text-gray-900 leading-relaxed;
+    letter-spacing: 0.01em;
+    -webkit-font-smoothing: auto;
+    text-rendering: auto;
   }
+}
+
+@layer utilities {
+  /* Improve contrast for project-wide gray text usage */
+  .text-gray-300 { color: #7b8794 !important; }
+  .text-gray-400 { color: #5f6b7a !important; }
+  .text-gray-500 { color: #4b5563 !important; }
+  .text-gray-600 { color: #374151 !important; }
+}
+
+/* Unified typography for all component pages */
+.page-typography {
+  font-family: 'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app-content h1,
+.app-content h2,
+.app-content h3,
+.app-content h4,
+.app-content h5,
+.app-content h6,
+.app-content p,
+.app-content span,
+.app-content label,
+.app-content th,
+.app-content td,
+.app-content li {
+  font-family: 'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2937;
+}
+
+.app-content input,
+.app-content select,
+.app-content textarea,
+.app-content button {
+  font-family: 'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app-content input,
+.app-content select,
+.app-content textarea {
+  color: #111827;
+}
+
+.app-content th {
+  color: #4b5563;
+}
+
+.app-content .text-white,
+.app-content [class*="bg-[#0f3433]"] .text-white {
+  color: #ffffff !important;
 }
 
 @layer components {

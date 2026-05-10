@@ -102,7 +102,7 @@ export default function CalendarManagement() {
   if (!state || !workspace || !editableCalendar) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="page-typography space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

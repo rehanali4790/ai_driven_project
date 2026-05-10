@@ -13,12 +13,11 @@ import {
   MousePointer2
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
-import { TaskStatus } from '@/lib/types';
 
 type ZoomLevel = 'day' | 'week' | 'month' | 'quarter';
 
 export default function GanttChart() {
-  const { state, generateArtifacts, updateTaskStatus, assignTask, moveTask, userRole, saveBaseline } =
+  const { state, generateArtifacts } =
     useProjectData();
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('week');
   const [zoomScale, setZoomScale] = useState(100);
@@ -30,6 +29,28 @@ export default function GanttChart() {
 
   const tasks = state?.tasks ?? [];
   const resources = state?.resources ?? [];
+  const today = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
+  const toDateOnly = (value: string) => {
+    const date = new Date(value);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  };
+
+  const deriveAutoStatus = (task: (typeof tasks)[number]) => {
+    const start = toDateOnly(task.start);
+    const end = toDateOnly(task.end);
+    if (task.progress >= 100) return 'completed';
+    if (today < start) return 'not_started';
+    if (today > end) return 'at_risk';
+    return 'in_progress';
+  };
+
+  const isLateCompleted = (task: (typeof tasks)[number]) =>
+    task.progress >= 100 && today > toDateOnly(task.end);
+
   const orderedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       const parentA = (a.parentActivity ?? "").toLowerCase();
@@ -46,9 +67,16 @@ export default function GanttChart() {
   const totalDays = useMemo(() => {
     if (!tasks.length) return 120;
     const start = new Date(Math.min(...tasks.map((task) => new Date(task.start).getTime())));
-    const end = new Date(Math.max(...tasks.map((task) => new Date(task.end).getTime())));
+    const end = new Date(
+      Math.max(
+        ...tasks.map((task) => new Date(task.end).getTime()),
+        ...tasks
+          .filter((task) => isLateCompleted(task))
+          .map(() => today.getTime()),
+      ),
+    );
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  }, [tasks]);
+  }, [tasks, today]);
 
   const chartStart = useMemo(
     () =>
@@ -79,7 +107,12 @@ export default function GanttChart() {
       ? new Date(Math.min(...tasks.map((task) => new Date(task.start).getTime())))
       : new Date('2025-09-01');
     const end = tasks.length
-      ? new Date(Math.max(...tasks.map((task) => new Date(task.end).getTime())))
+      ? new Date(
+          Math.max(
+            ...tasks.map((task) => new Date(task.end).getTime()),
+            ...tasks.filter((task) => isLateCompleted(task)).map(() => today.getTime()),
+          ),
+        )
       : new Date('2026-12-31');
     let current = new Date(start);
 
@@ -97,14 +130,20 @@ export default function GanttChart() {
   const statusColors = {
     completed: 'bg-[#12b3a8]',
     in_progress: 'bg-emerald-400',
-    not_started: 'bg-gray-200',
-    at_risk: 'bg-amber-400',
+    not_started: 'bg-amber-400',
+    at_risk: 'bg-red-400',
+  };
+
+  const getAutoStatus = (task: (typeof tasks)[number]) => deriveAutoStatus(task);
+
+  const getTaskColorClass = (task: (typeof tasks)[number]) => {
+    const autoStatus = getAutoStatus(task);
+    if (task.isCritical && autoStatus === 'in_progress') return 'bg-red-500';
+    return statusColors[autoStatus];
   };
 
   const filteredTasks = showCritical ? orderedTasks.filter(t => t.isCritical) : orderedTasks;
-  const canEditTasks = userRole !== "viewer";
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? filteredTasks[0] ?? null;
-  const resourceMap = useMemo(() => new Map(resources.map((resource) => [resource.id, resource.name])), [resources]);
   
   const dependencySegments = useMemo(() => {
     if (!showDependencies) return [];
@@ -142,7 +181,7 @@ export default function GanttChart() {
   if (!state) return null;
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="page-typography space-y-8 p-1">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -256,14 +295,22 @@ export default function GanttChart() {
                           {task.isMilestone ? (
                             <div className="w-2.5 h-2.5 bg-amber-400 rotate-45 flex-shrink-0" />
                           ) : (
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColors[task.status]}`} />
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getTaskColorClass(task)}`} />
                           )}
                           <span className="text-[12px] font-bold text-[#0f3433] truncate leading-tight">
-                             {task.activityId ? `${task.activityId}: ` : ''}{task.name}
+                             {task.name}
                           </span>
                         </div>
                         <span className={`px-2 py-0.5 text-[9px] font-black rounded-lg uppercase tracking-tight ${
-                          task.status === 'completed' ? 'bg-[#f0f9f8] text-[#12b3a8]' : 'bg-gray-100 text-gray-400'
+                          getAutoStatus(task) === 'completed'
+                            ? 'bg-[#f0f9f8] text-[#12b3a8]'
+                            : getAutoStatus(task) === 'not_started'
+                              ? 'bg-amber-50 text-amber-600'
+                              : getAutoStatus(task) === 'at_risk'
+                                ? 'bg-red-50 text-red-600'
+                                : task.isCritical
+                                  ? 'bg-red-50 text-red-600'
+                                  : 'bg-emerald-50 text-emerald-600'
                         }`}>
                           {task.progress}%
                         </span>
@@ -271,7 +318,6 @@ export default function GanttChart() {
                       {/* Secondary Info Layer */}
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                          <span className="text-[9px] font-bold text-gray-400 uppercase">{task.assigned || 'Unassigned'}</span>
-                         {canEditTasks && <button onClick={() => {}} className="text-[9px] font-black text-[#12b3a8] uppercase">Edit</button>}
                       </div>
                     </div>
                   ))}
@@ -309,51 +355,64 @@ export default function GanttChart() {
                   </div>
 
                   {/* Task Bars */}
-                  {filteredTasks.map((task, index) => (
-                    <div
-                      key={task.id}
-                      className="absolute flex items-center"
-                      style={{ top: `${index * 48}px`, height: '48px' }}
-                    >
-                      {task.isMilestone ? (
-                        <div
-                          className="absolute h-4 w-4 bg-amber-400 rotate-45 shadow-sm border border-white"
-                          style={{ left: `${getTaskPosition(new Date(task.start))}px` }}
-                        />
-                      ) : (
-                        <div className="relative h-full flex items-center">
-                          {/* Baseline Shadow */}
-                          {showBaseline && task.baselineStart && task.baselineEnd && (
-                            <div
-                              className="absolute h-2.5 rounded-full bg-gray-100/80 border border-gray-200/50 -bottom-1"
-                              style={{
-                                left: `${getTaskPosition(new Date(task.baselineStart))}px`,
-                                width: `${getTaskWidth(new Date(task.baselineStart), new Date(task.baselineEnd))}px`,
-                              }}
-                            />
-                          )}
-                          {/* Primary Bar */}
+                  {filteredTasks.map((task, index) => {
+                    const autoStatus = getAutoStatus(task);
+                    const taskStart = new Date(task.start);
+                    const taskEnd = new Date(task.end);
+                    const lateCompleted = isLateCompleted(task);
+                    const delayStart = lateCompleted ? getTaskPosition(taskEnd) : 0;
+                    const delayWidth = lateCompleted ? getTaskWidth(taskEnd, today) : 0;
+                    return (
+                      <div
+                        key={task.id}
+                        className="absolute flex items-center"
+                        style={{ top: `${index * 48}px`, height: '48px' }}
+                      >
+                        {task.isMilestone ? (
                           <div
-                            className={`absolute h-4 rounded-full shadow-sm transition-all group ${statusColors[task.status]} ${
-                              task.isCritical ? "ring-2 ring-red-400/30" : ""
-                            }`}
-                            style={{
-                              left: `${getTaskPosition(new Date(task.start))}px`,
-                              width: `${getTaskWidth(new Date(task.start), new Date(task.end))}px`,
-                            }}
-                          >
-                            {/* Inner Progress Fill */}
-                            <div className="h-full bg-white/20 rounded-full" style={{ width: `${task.progress}%` }} />
-                            
-                            {/* Hover Details Pin */}
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#0f3433] text-white text-[9px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                               {task.progress}% Complete
+                            className="absolute h-4 w-4 bg-amber-400 rotate-45 shadow-sm border border-white"
+                            style={{ left: `${getTaskPosition(taskStart)}px` }}
+                          />
+                        ) : (
+                          <div className="relative h-full flex items-center">
+                            {showBaseline && task.baselineStart && task.baselineEnd && (
+                              <div
+                                className="absolute h-2.5 rounded-full bg-gray-100/80 border border-gray-200/50 -bottom-1"
+                                style={{
+                                  left: `${getTaskPosition(new Date(task.baselineStart))}px`,
+                                  width: `${getTaskWidth(new Date(task.baselineStart), new Date(task.baselineEnd))}px`,
+                                }}
+                              />
+                            )}
+                            <div
+                              className={`absolute h-4 rounded-full shadow-sm transition-all group ${getTaskColorClass(task)} ${
+                                task.isCritical ? "ring-2 ring-red-400/30" : ""
+                              }`}
+                              style={{
+                                left: `${getTaskPosition(taskStart)}px`,
+                                width: `${getTaskWidth(taskStart, taskEnd)}px`,
+                              }}
+                            >
+                              <div className="h-full bg-white/20 rounded-full" style={{ width: `${task.progress}%` }} />
+                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#0f3433] text-white text-[9px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                {task.progress}% Complete
+                              </div>
                             </div>
+                            {lateCompleted && (
+                              <div
+                                className="absolute h-3 rounded-full bg-red-400/90 border border-red-300"
+                                style={{
+                                  left: `${delayStart}px`,
+                                  width: `${delayWidth}px`,
+                                }}
+                                title="Completed after due date"
+                              />
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Dependency SVG Layer */}
                   {showDependencies && (
@@ -387,8 +446,8 @@ export default function GanttChart() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {[
           { label: 'Dataset Size', val: filteredTasks.length, icon: Layers, color: 'text-[#12b3a8]' },
-          { label: 'Tasks Closed', val: filteredTasks.filter(t => t.status === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
-          { label: 'Work-In-Progress', val: filteredTasks.filter(t => t.status === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
+          { label: 'Tasks Closed', val: filteredTasks.filter(t => getAutoStatus(t) === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
+          { label: 'Work-In-Progress', val: filteredTasks.filter(t => getAutoStatus(t) === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
           { label: 'Critical Path', val: filteredTasks.filter(t => t.isCritical).length, icon: AlertTriangle, color: 'text-red-500' }
         ].map((stat, i) => (
           <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4">
@@ -403,84 +462,8 @@ export default function GanttChart() {
         ))}
       </div>
 
-      {selectedTask && (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Task Control Center</p>
-              <h3 className="text-lg font-bold text-[#0f3433] mt-1">{selectedTask.name}</h3>
-            </div>
-            <div className="text-sm text-gray-500">
-              {selectedTask.start} - {selectedTask.end}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Assignment</label>
-              <select
-                disabled={!canEditTasks}
-                value={selectedTask.assignedResourceId || ""}
-                onChange={(e) => void assignTask(selectedTask.id, e.target.value)}
-                className="mt-1 w-full bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 text-sm"
-              >
-                <option value="">Unassigned</option>
-                {resources.map((resource) => (
-                  <option key={resource.id} value={resource.id}>
-                    {resource.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Status</label>
-              <select
-                disabled={!canEditTasks}
-                value={selectedTask.status}
-                onChange={(e) => void updateTaskStatus(selectedTask.id, e.target.value as TaskStatus)}
-                className="mt-1 w-full bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 text-sm"
-              >
-                <option value="not_started">Not Started</option>
-                <option value="in_progress">In Progress</option>
-                <option value="at_risk">At Risk</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Schedule</label>
-              <button
-                disabled={!canEditTasks}
-                onClick={() => void moveTask(selectedTask.id, selectedTask.start, selectedTask.end)}
-                className="mt-1 w-full bg-[#0f3433] text-white rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50"
-              >
-                Confirm Current Dates
-              </button>
-            </div>
-          </div>
-          <p className="mt-4 text-xs text-gray-500">
-            Allocated to: <span className="font-semibold text-[#0f3433]">{selectedTask.assignedResourceId ? (resourceMap.get(selectedTask.assignedResourceId) || selectedTask.assigned || "Unassigned") : (selectedTask.assigned || "Unassigned")}</span>
-          </p>
-        </div>
-      )}
-
       {/* Bottom Context Card */}
-      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-center md:text-left">
-            <h3 className="text-lg font-bold mb-2">Automated Lifecycle Tracking</h3>
-            <p className="text-[#a0c4c2] text-sm max-w-xl font-medium leading-relaxed">
-              This Gantt structure is derived from AI ingestion of project schedules. Updates to dates and status are synchronized with the primary WBS and document repository in real-time.
-            </p>
-          </div>
-          <button
-            onClick={() => void saveBaseline(state.project.id)}
-            className="px-8 py-3 bg-[#12b3a8] text-white text-sm font-bold rounded-xl hover:bg-[#0e9188] transition-all shadow-lg shadow-[#12b3a8]/20 active:scale-95"
-          >
-            Freeze Master Baseline
-          </button>
-        </div>
-        {/* Background glow decoration */}
-        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-[#12b3a8]/10 rounded-full blur-3xl"></div>
-      </div>
+
     </div>
   );
 }

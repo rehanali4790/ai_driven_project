@@ -32,7 +32,7 @@ export default function PlanningStudio() {
     durationDays: 5,
     startDate: new Date().toISOString().slice(0, 10),
     predecessorTaskId: "",
-    assignedResourceId: "",
+    assignedResourceIds: [] as string[],
   });
 
   const taskByWbsId = useMemo(() => {
@@ -44,6 +44,26 @@ export default function PlanningStudio() {
     });
     return map;
   }, [tasks]);
+
+  const selectedResourceNames = useMemo(() => {
+    if (!draft.assignedResourceIds.length) return "Unassigned";
+    return resources
+      .filter((resource) => draft.assignedResourceIds.includes(resource.id))
+      .map((resource) => resource.name)
+      .join(", ");
+  }, [draft.assignedResourceIds, resources]);
+
+  const toggleAssignedResource = (resourceId: string) => {
+    setDraft((prev) => {
+      const exists = prev.assignedResourceIds.includes(resourceId);
+      return {
+        ...prev,
+        assignedResourceIds: exists
+          ? prev.assignedResourceIds.filter((id) => id !== resourceId)
+          : [...prev.assignedResourceIds, resourceId],
+      };
+    });
+  };
 
   const createTask = async () => {
     if (!canEdit) return;
@@ -60,7 +80,8 @@ export default function PlanningStudio() {
         durationDays: Math.max(1, Number(draft.durationDays || 1)),
         startDate: draft.startDate || undefined,
         predecessorTaskId: draft.predecessorTaskId || undefined,
-        assignedResourceId: draft.assignedResourceId || undefined,
+        assignedResourceIds: draft.assignedResourceIds.length ? draft.assignedResourceIds : undefined,
+        assignedResourceId: draft.assignedResourceIds[0] || undefined,
         summary: draft.summary,
       });
       setMessage("Task created and synced in WBS + Gantt.");
@@ -68,7 +89,7 @@ export default function PlanningStudio() {
         ...draft,
         name: "",
         predecessorTaskId: "",
-        assignedResourceId: "",
+        assignedResourceIds: [],
       });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to create task.");
@@ -78,7 +99,7 @@ export default function PlanningStudio() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="page-typography space-y-6">
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
         <h1 className="text-2xl font-bold text-[#0f3433]">Planning Studio</h1>
         <p className="text-sm text-gray-500 mt-1">
@@ -200,18 +221,29 @@ export default function PlanningStudio() {
           </div>
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Assigned Resource</label>
-            <select
-              value={draft.assignedResourceId}
-              onChange={(e) => setDraft({ ...draft, assignedResourceId: e.target.value })}
-              className="mt-1 w-full px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 text-sm"
-            >
-              <option value="">Unassigned</option>
-              {resources.map((resource) => (
-                <option key={resource.id} value={resource.id}>
-                  {resource.name}
-                </option>
-              ))}
-            </select>
+            <details className="mt-1 w-full rounded-lg bg-gray-50 border border-gray-100 text-sm">
+              <summary className="px-3 py-2 cursor-pointer list-none flex items-center justify-between">
+                <span className="truncate">{selectedResourceNames}</span>
+                <span className="text-xs text-gray-500">{draft.assignedResourceIds.length} selected</span>
+              </summary>
+              <div className="max-h-44 overflow-y-auto border-t border-gray-100 px-3 py-2 space-y-2">
+                {resources.length ? (
+                  resources.map((resource) => (
+                    <label key={resource.id} className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={draft.assignedResourceIds.includes(resource.id)}
+                        onChange={() => toggleAssignedResource(resource.id)}
+                        className="h-4 w-4 rounded border-gray-300 accent-[#12b3a8]"
+                      />
+                      <span className="truncate">{resource.name}</span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-500">No resources available.</p>
+                )}
+              </div>
+            </details>
           </div>
           <div className="flex items-end">
             <p className="text-xs text-gray-500">

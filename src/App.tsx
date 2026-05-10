@@ -9,6 +9,8 @@ import GanttChart from "./components/GanttChart";
 import GanttEditor from "./components/GanttEditor";
 import PlanningStudio from "./components/PlanningStudio";
 import ResourceManagement from "./components/ResourceManagement";
+import InventoryManagement from "./components/InventoryManagement";
+import UnitsManagement from "./components/UnitsManagement";
 import CalendarManagement from "./components/CalendarManagement";
 import AIAssistant from "./components/AIAssistant";
 import DocumentUpload from "./components/DocumentUpload";
@@ -37,7 +39,16 @@ function AppShell() {
       case "planning_studio":
         return <PlanningStudio />;
       case "resources":
-        return <ResourceManagement />;
+      case "resources_human":
+        return <ResourceManagement resourceView="human" />;
+      case "resources_equipment":
+        return <ResourceManagement resourceView="equipment" />;
+      case "resources_material":
+        return <ResourceManagement resourceView="material" />;
+      case "inventory":
+        return <InventoryManagement />;
+      case "units":
+        return <UnitsManagement />;
       case "calendar":
         return <CalendarManagement />;
       case "ai":
@@ -58,7 +69,7 @@ function AppShell() {
           projectLocation={state?.project.location}
           onRefresh={refresh}
         />
-        <main className="flex-1 overflow-auto p-6">
+        <main className="app-content flex-1 overflow-auto p-6">
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}

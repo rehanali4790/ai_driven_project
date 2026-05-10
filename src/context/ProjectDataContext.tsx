@@ -24,6 +24,8 @@ import {
   WorkspaceMeta,
   UnifiedPlanDraft,
   PlannedTaskNodeDraft,
+  InventoryDraft,
+  InventoryAllocationDraft,
 } from "@/lib/types";
 
 interface ProjectDataContextValue {
@@ -45,6 +47,10 @@ interface ProjectDataContextValue {
   generateArtifacts: () => Promise<void>;
   askAi: (question: string) => Promise<ChatResponse>;
   upsertResource: (resource: ResourceDraft) => Promise<void>;
+  upsertInventory: (inventory: InventoryDraft) => Promise<void>;
+  allocateInventory: (payload: InventoryAllocationDraft) => Promise<void>;
+  addInventoryUnit: (unit: string) => Promise<void>;
+  removeInventoryUnit: (unit: string) => Promise<void>;
   updateTask: (taskId: string, updates: TaskUpdateDraft) => Promise<void>;
   createTask: (task: TaskUpdateDraft & { name: string }) => Promise<void>;
   moveTask: (taskId: string, start: string, end: string) => Promise<void>;
@@ -168,6 +174,14 @@ export function ProjectDataProvider({ children }: { children: ReactNode }) {
       generateArtifacts: async () => runBootstrapAction(api.generateArtifacts()),
       askAi: (question: string) => api.chat(question),
       upsertResource: async (resource: ResourceDraft) => runBootstrapAction(api.upsertResource(resource)),
+      upsertInventory: async (inventory: InventoryDraft) =>
+        runBootstrapAction(api.upsertInventory(inventory)),
+      allocateInventory: async (payload: InventoryAllocationDraft) =>
+        runBootstrapAction(api.allocateInventory(payload)),
+      addInventoryUnit: async (unit: string) =>
+        runBootstrapAction(api.addInventoryUnit(unit)),
+      removeInventoryUnit: async (unit: string) =>
+        runBootstrapAction(api.removeInventoryUnit(unit)),
       updateTask: async (taskId: string, updates: TaskUpdateDraft) =>
         runBootstrapAction(api.updateTask(taskId, updates)),
       createTask: async (task: TaskUpdateDraft & { name: string }) =>

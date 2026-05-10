@@ -9,8 +9,13 @@ import {
   FolderKanban,
   ChevronLeft,
   Calendar,
-  Rows3
+  Rows3,
+  ChevronDown,
+  ChevronRight,
+  Boxes,
+  Ruler,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ViewType } from '@/lib/types';
 
 interface SidebarProps {
@@ -25,12 +30,29 @@ const menuItems = [
   { id: 'wbs' as ViewType, label: 'WBS Structure', icon: GitBranch },
   { id: 'planning_studio' as ViewType, label: 'Planning Studio', icon: Rows3 },
   { id: 'gantt' as ViewType, label: 'Gantt Chart', icon: GanttChart },
-  { id: 'resources' as ViewType, label: 'Resources', icon: Users },
   { id: 'calendar' as ViewType, label: 'Calendar', icon: Calendar },
+  { id: 'inventory' as ViewType, label: 'Inventory', icon: Boxes },
+  { id: 'units' as ViewType, label: 'Measurement Units', icon: Ruler },
   { id: 'ai' as ViewType, label: 'AI Assistant', icon: Bot },
 ];
 
+const resourceSubmenuItems = [
+  { id: 'resources_human' as ViewType, label: 'Human Resource' },
+  { id: 'resources_equipment' as ViewType, label: 'Asset / Equipment' },
+  { id: 'resources_material' as ViewType, label: 'Material Supply' },
+];
+
 export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
+  const isResourceView =
+    currentView === 'resources' || resourceSubmenuItems.some((item) => item.id === currentView);
+  const [resourceExpanded, setResourceExpanded] = useState(isResourceView);
+
+  useEffect(() => {
+    if (isResourceView) {
+      setResourceExpanded(true);
+    }
+  }, [isResourceView]);
+
   return (
     <aside className="w-64 bg-white flex flex-col border-r border-gray-100 h-screen transition-all duration-300">
       {/* Header / Logo Section - Reference Style */}
@@ -40,8 +62,8 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
             <FileText className="w-6 h-6 text-[#12b3a8]" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-[#0f3433] tracking-tight leading-tight">InfraMind</h1>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Enterprise</span>
+            <h1 className="font-bold text-xl text-[#0f3433] tracking-tight leading-tight">InfraMind</h1>
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Enterprise</span>
           </div>
         </div>
         <button className="p-1 hover:bg-gray-50 rounded-lg text-gray-400">
@@ -51,7 +73,7 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
 
       {/* Section Label - Clean Look */}
       <div className="px-7 py-2">
-        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[1.5px]">Main Menu</p>
+        <p className="text-[12px] font-bold text-gray-400 uppercase tracking-[1.5px]">Main Menu</p>
       </div>
 
       {/* Navigation - Emerald Theme */}
@@ -71,13 +93,54 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
                   }`}
                 >
                   <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-[#12b3a8]' : 'text-gray-400 group-hover:text-[#12b3a8]'}`} />
-                  <span className={`text-[14px] font-semibold ${isActive ? 'text-[#0f3433]' : ''}`}>
+                  <span className={`text-[15px] font-semibold ${isActive ? 'text-[#0f3433]' : ''}`}>
                     {item.label}
                   </span>
                 </button>
               </li>
             );
           })}
+          <li>
+            <button
+              onClick={() => setResourceExpanded((prev) => !prev)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${
+                isResourceView
+                  ? 'bg-[#f0f9f8] text-[#12b3a8]'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-[#0f3433]'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <Users className={`w-5 h-5 transition-colors ${isResourceView ? 'text-[#12b3a8]' : 'text-gray-400 group-hover:text-[#12b3a8]'}`} />
+                <span className={`text-[15px] font-semibold ${isResourceView ? 'text-[#0f3433]' : ''}`}>
+                  Resources
+                </span>
+              </span>
+              {resourceExpanded ? (
+                <ChevronDown className={`w-4 h-4 ${isResourceView ? 'text-[#12b3a8]' : 'text-gray-400'}`} />
+              ) : (
+                <ChevronRight className={`w-4 h-4 ${isResourceView ? 'text-[#12b3a8]' : 'text-gray-400'}`} />
+              )}
+            </button>
+          </li>
+          {resourceExpanded &&
+            resourceSubmenuItems.map((item) => {
+              const isActive = currentView === item.id || (currentView === 'resources' && item.id === 'resources_human');
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => onNavigate(item.id)}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 ml-4 rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? 'bg-[#f0f9f8] text-[#0f3433]'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-[#0f3433]'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                    <span className="text-[14px] font-semibold">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
         </ul>
       </nav>
 
@@ -89,9 +152,9 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
               <div className="w-2.5 h-2.5 bg-[#12b3a8] rounded-full"></div>
               <div className="w-2.5 h-2.5 bg-[#12b3a8] rounded-full absolute top-0 left-0 animate-ping opacity-75"></div>
             </div>
-            <span className="text-[11px] font-bold text-[#0f3433] uppercase">AI Active</span>
+            <span className="text-[12px] font-bold text-[#0f3433] uppercase">AI Active</span>
           </div>
-          <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
+          <p className="text-[12px] text-gray-500 font-medium leading-relaxed">
             InfraMind Engine is analyzing project documents in real-time.
           </p>
         </div>
@@ -103,7 +166,7 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-[#0f3433] truncate">Project Lead</p>
-            <p className="text-[10px] text-gray-400 font-medium truncate">infra.mind/active</p>
+            <p className="text-[11px] text-gray-400 font-medium truncate">infra.mind/active</p>
           </div>
         </div>
       </div>
