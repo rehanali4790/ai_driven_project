@@ -45,6 +45,20 @@ export default function PlanningStudio() {
     return map;
   }, [tasks]);
 
+  /** Resolve dependency ids (task.id / activityId / wbsNodeId) to display names */
+  const predecessorNameByRef = useMemo(() => {
+    const m = new Map<string, string>();
+    tasks.forEach((task) => {
+      m.set(task.id, task.name);
+      if (task.activityId) m.set(task.activityId, task.name);
+      if (task.wbsNodeId) m.set(task.wbsNodeId, task.name);
+    });
+    wbsNodes.forEach((node) => {
+      if (!m.has(node.id)) m.set(node.id, node.name);
+    });
+    return m;
+  }, [tasks, wbsNodes]);
+
   const selectedResourceNames = useMemo(() => {
     if (!draft.assignedResourceIds.length) return "Unassigned";
     return resources
@@ -291,9 +305,13 @@ export default function PlanningStudio() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {task?.dependencies?.length ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Link2 className="w-3 h-3 text-gray-400" />
-                          {task.dependencies.length} linked
+                        <span className="inline-flex items-start gap-1.5 max-w-md">
+                          <Link2 className="w-3 h-3 text-gray-400 shrink-0 mt-0.5" />
+                          <span className="leading-snug">
+                            {task.dependencies
+                              .map((depId) => predecessorNameByRef.get(depId) ?? depId)
+                              .join(", ")}
+                          </span>
                         </span>
                       ) : (
                         "None"

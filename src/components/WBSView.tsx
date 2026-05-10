@@ -204,9 +204,9 @@ function MHead({title,sub,onClose}) {
     <div style={{padding:"20px 24px 16px",borderBottom:`1px solid ${C.g100}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexShrink:0}}>
       <div>
         <h2 style={{margin:0,fontSize:17,fontWeight:700,color:C.navy,fontFamily:FONT}}>{title}</h2>
-        {sub&&<p style={{margin:"4px 0 0",fontSize:12,color:C.g400,fontFamily:MONO}}>{sub}</p>}
+        {sub&&<p style={{margin:"4px 0 0",fontSize:12,color:C.g700,fontFamily:MONO,fontWeight:600}}>{sub}</p>}
       </div>
-      <button onClick={onClose} style={{background:C.g100,border:"none",borderRadius:8,padding:"6px 7px",cursor:"pointer",color:C.g600,display:"flex",alignItems:"center",marginLeft:12,flexShrink:0}}>
+      <button onClick={onClose} style={{background:C.g100,border:"none",borderRadius:8,padding:"6px 7px",cursor:"pointer",color:C.g700,display:"flex",alignItems:"center",marginLeft:12,flexShrink:0}}>
         <X size={16} strokeWidth={2}/>
       </button>
     </div>
@@ -223,7 +223,7 @@ function ResourceModal({node,onClose}) {
       <MHead title="Allocated Resources" sub={`${node.code} — ${node.name}`} onClose={onClose}/>
       <div style={{padding:"10px 24px",background:C.g50,borderBottom:`1px solid ${C.g100}`,display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
         <span style={{padding:"3px 12px",background:C.white,border:`1px solid ${C.g200}`,borderRadius:20,fontSize:12,fontWeight:600,color:C.navy}}>{res.length} Resource{res.length!==1?"s":""}</span>
-        <span style={{fontSize:12,color:C.g400}}>Costs estimated from task duration × allocation percentage.</span>
+        <span style={{fontSize:12,color:C.g600,fontWeight:500}}>Costs estimated from task duration × allocation percentage.</span>
       </div>
       <div style={{
         flex:1,
@@ -239,7 +239,7 @@ function ResourceModal({node,onClose}) {
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
           {[{l:"Total Estimated Cost",v:`PKR ${fmt(Math.round(total))}`},{l:"Unique Tasks Covered",v:tasks},{l:"Total Resources",v:res.length}].map((k,i)=>(
             <div key={i} style={{background:C.g50,border:`1px solid ${C.g100}`,borderRadius:12,padding:"14px 16px"}}>
-              <p style={{margin:"0 0 5px",fontSize:10,fontWeight:700,color:C.g400,textTransform:"uppercase",letterSpacing:"0.1em"}}>{k.l}</p>
+              <p style={{margin:"0 0 5px",fontSize:10,fontWeight:800,color:C.g600,textTransform:"uppercase",letterSpacing:"0.1em"}}>{k.l}</p>
               <p style={{margin:0,fontSize:16,fontWeight:700,color:C.navy,fontFamily:MONO}}>{k.v}</p>
             </div>
           ))}
@@ -250,36 +250,36 @@ function ResourceModal({node,onClose}) {
               <div>
                 <p style={{margin:0,fontSize:15,fontWeight:700,color:C.navy}}>{r.name}</p>
                 <div style={{display:"flex",gap:6,marginTop:6}}>
-                  <span style={{padding:"2px 8px",background:C.white,border:`1px solid ${C.g200}`,borderRadius:6,fontSize:11,fontWeight:600,color:C.g500,textTransform:"uppercase"}}>{r.type}</span>
-                  <span style={{padding:"2px 8px",background:C.white,border:`1px solid ${C.g200}`,borderRadius:6,fontSize:11,fontWeight:600,color:C.g500}}>{r.role}</span>
+                  <span style={{padding:"2px 8px",background:C.white,border:`1px solid ${C.g200}`,borderRadius:6,fontSize:11,fontWeight:700,color:C.g700,textTransform:"uppercase"}}>{r.type}</span>
+                  <span style={{padding:"2px 8px",background:C.white,border:`1px solid ${C.g200}`,borderRadius:6,fontSize:11,fontWeight:600,color:C.g700}}>{r.role}</span>
                 </div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <p style={{margin:"0 0 3px",fontSize:10,fontWeight:700,color:C.g400,textTransform:"uppercase",letterSpacing:"0.1em"}}>Estimated Cost</p>
+                <p style={{margin:"0 0 3px",fontSize:10,fontWeight:800,color:C.g600,textTransform:"uppercase",letterSpacing:"0.1em"}}>Estimated Cost</p>
                 <p style={{margin:0,fontSize:15,fontWeight:700,color:C.navy,fontFamily:MONO}}>PKR {fmt(Math.round(r.estimatedCost))}</p>
               </div>
             </div>
             <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.g200}`}}>
-              <p style={{margin:"0 0 3px",fontSize:10,fontWeight:700,color:C.g400,textTransform:"uppercase",letterSpacing:"0.1em"}}>Assigned Tasks</p>
-              <p style={{margin:0,fontSize:13,color:C.g600,lineHeight:1.5}}>{r.taskNames.join(", ")}</p>
+              <p style={{margin:"0 0 3px",fontSize:10,fontWeight:800,color:C.g600,textTransform:"uppercase",letterSpacing:"0.1em"}}>Assigned Tasks</p>
+              <p style={{margin:0,fontSize:13,color:C.g700,fontWeight:600,lineHeight:1.55}}>{r.taskNames.join(", ")}</p>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:12}}>
               {[{l:"Capacity",v:`${r.capacity}%`},{l:"Allocated",v:`${r.allocated}%`},{l:"Rate/Unit",v:`PKR ${fmt(r.costRate)}`},{l:"Status",v:r.status}].map((m,i)=>(
                 <div key={i} style={{background:C.white,border:`1px solid ${C.g100}`,borderRadius:9,padding:"8px 10px"}}>
-                  <p style={{margin:"0 0 3px",fontSize:10,fontWeight:700,color:C.g400,textTransform:"uppercase",letterSpacing:"0.09em"}}>{m.l}</p>
-                  <p style={{margin:0,fontSize:13,fontWeight:600,color:C.navy,fontFamily:MONO,textTransform:"capitalize"}}>{m.v}</p>
+                  <p style={{margin:"0 0 3px",fontSize:10,fontWeight:800,color:C.g600,textTransform:"uppercase",letterSpacing:"0.09em"}}>{m.l}</p>
+                  <p style={{margin:0,fontSize:13,fontWeight:700,color:C.navy,fontFamily:MONO,textTransform:"capitalize"}}>{m.v}</p>
                 </div>
               ))}
             </div>
             {(r.email||r.skills?.length>0)&&(
               <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.g200}`}}>
-                {r.email&&<p style={{margin:"0 0 2px",fontSize:13,color:C.g600,fontFamily:FONT}}><span style={{fontWeight:700,color:C.g500}}>Contact:</span> {r.email}</p>}
-                {r.skills?.length>0&&<p style={{margin:0,fontSize:13,color:C.g600,fontFamily:FONT}}><span style={{fontWeight:700,color:C.g500}}>Skills:</span> {r.skills.join(", ")}</p>}
+                {r.email&&<p style={{margin:"0 0 2px",fontSize:13,color:C.g700,fontFamily:FONT,fontWeight:500}}><span style={{fontWeight:800,color:C.navy}}>Contact:</span> {r.email}</p>}
+                {r.skills?.length>0&&<p style={{margin:0,fontSize:13,color:C.g700,fontFamily:FONT,fontWeight:500}}><span style={{fontWeight:800,color:C.navy}}>Skills:</span> {r.skills.join(", ")}</p>}
               </div>
             )}
           </div>
         ))}
-        {!res.length&&<div style={{textAlign:"center",padding:"32px 0"}}><p style={{margin:0,fontSize:14,fontWeight:600,color:C.g400}}>No resources assigned to this node.</p></div>}
+        {!res.length&&<div style={{textAlign:"center",padding:"32px 0"}}><p style={{margin:0,fontSize:14,fontWeight:600,color:C.g600}}>No resources assigned to this node.</p></div>}
       </div>
     </ModalShell>
   );
@@ -293,7 +293,7 @@ function ProgressModal({node,initVal,onSave,onClose}) {
     <ModalShell onClose={onClose} width={440}>
       <MHead title="Update Progress" sub={`${node.code} — ${node.name}`} onClose={onClose}/>
       <div style={{padding:24,fontFamily:FONT}}>
-        <p style={{margin:"0 0 14px",fontSize:11,fontWeight:700,color:C.g400,textTransform:"uppercase",letterSpacing:"0.1em"}}>Completion Percentage</p>
+        <p style={{margin:"0 0 14px",fontSize:11,fontWeight:800,color:C.g600,textTransform:"uppercase",letterSpacing:"0.1em"}}>Completion Percentage</p>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
           <input type="range" min={0} max={100} step={1} value={val} onChange={e=>setVal(+e.target.value)} style={{flex:1,accentColor:C.teal}}/>
           <input type="number" min={0} max={100} value={val} onChange={e=>setVal(Math.max(0,Math.min(100,+e.target.value)))} style={{width:60,padding:"7px 10px",borderRadius:8,border:`1px solid ${C.g200}`,fontSize:14,fontWeight:600,color:C.navy,textAlign:"center",fontFamily:MONO,outline:"none"}}/>
