@@ -8,8 +8,7 @@ import {
   AlertCircle,
   TrendingUp,
   Edit2,
-  Save,
-  Clock
+  Save
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 
@@ -47,14 +46,14 @@ export default function ProjectOverview() {
     : state.project;
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="page-typography space-y-8 p-1">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">
             Project Overview
           </h1>
-          <p className="text-gray-500 text-sm mt-1">Detailed lifecycle management and analytics</p>
+          <p className="text-gray-500 text-md mt-1">Detailed lifecycle management and analytics</p>
         </div>
         <button
           onClick={() => {
@@ -134,13 +133,13 @@ export default function ProjectOverview() {
               </div>
             </div>
             <div className="mt-8 pt-6 border-t border-gray-50">
-              <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Project Description</label>
+              <label className="text-[15px] font-extrabold text-gray-800 uppercase tracking-widest">Project Description</label>
               {isEditing ? (
                 <textarea
                   value={draft.description}
                   onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                   rows={3}
-                  className="w-full mt-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#12b3a8]/20 focus:border-[#12b3a8] outline-none"
+                  className="w-full mt-2 bg-gray-800 border border-gray-200 rounded-xl px-4 py-3 text-lg focus:ring-2 focus:ring-[#12b3a8]/20 focus:border-[#12b3a8] outline-none"
                 />
               ) : (
                 <p className="text-gray-600 mt-2 text-sm leading-relaxed font-medium">{projectData.description}</p>
@@ -218,26 +217,6 @@ export default function ProjectOverview() {
             </div>
           </div>
 
-          {/* AI Analysis Footer (Dark Theme) */}
-          <div className="bg-[#0f3433] rounded-[28px] p-7 text-white relative overflow-hidden shadow-xl">
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <TrendingUp className="w-5 h-5 text-[#12b3a8]" />
-                <h3 className="text-lg font-bold tracking-tight">AI Insights</h3>
-              </div>
-              <p className="text-[#a0c4c2] text-[13px] leading-relaxed mb-6 font-medium">
-                Analysis of latest WBS shows <span className="text-white font-bold">{dashboard.criticalTasks} critical path</span> tasks. Active risk profile is stable.
-              </p>
-              <div className="flex items-center gap-2 py-2 px-3 bg-white/5 rounded-xl border border-white/10">
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-                  Synced: {new Date(state.lastUpdatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </span>
-              </div>
-            </div>
-            {/* Background decorative glow */}
-            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[#12b3a8]/10 rounded-full blur-3xl"></div>
-          </div>
         </div>
       </div>
     </div>

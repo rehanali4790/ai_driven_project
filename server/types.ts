@@ -131,6 +131,8 @@ export interface GanttTask {
   dependencyLagByPredecessor?: Record<string, number>;
   isMilestone: boolean;
   isCritical: boolean;
+  /** True when today > end date and task is not completed */
+  isOverdue?: boolean;
   assigned: string;
   /** Single assignee resource id (merged global + project pool) */
   assignedResourceId?: string;
@@ -171,6 +173,26 @@ export interface AllocationItem {
   allocation: number;
 }
 
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: "equipment" | "material";
+  quantity: number;
+  singleUnitPrice?: number;
+  bulkPrice?: number;
+  unit: string;
+  updatedAt: string;
+}
+
+export interface InventoryAllocationItem {
+  id: string;
+  inventoryId: string;
+  resourceId: string;
+  taskId: string;
+  quantity: number;
+  createdAt: string;
+}
+
 export interface DashboardStats {
   overallProgress: number;
   tasksCompleted: number;
@@ -189,6 +211,9 @@ export interface AppState {
   /** Project-scoped resources only (global resources live on Workspace) */
   resources: ResourceItem[];
   allocations: AllocationItem[];
+  inventories: InventoryItem[];
+  inventoryAllocations: InventoryAllocationItem[];
+  inventoryUnits: string[];
   risks: RiskItem[];
   milestones: Milestone[];
   activities: ActivityItem[];
@@ -251,6 +276,23 @@ export interface PartialResource {
   id?: string;
   skills?: string[];
   email?: string;
+}
+
+export interface PartialInventory {
+  id?: string;
+  name: string;
+  category?: "equipment" | "material";
+  quantity: number;
+  singleUnitPrice?: number;
+  bulkPrice?: number;
+  unit: string;
+}
+
+export interface InventoryAllocationInput {
+  inventoryId: string;
+  resourceId: string;
+  taskId: string;
+  quantity: number;
 }
 
 export interface PartialMilestone {

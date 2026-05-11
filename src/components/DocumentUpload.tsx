@@ -120,7 +120,7 @@ export default function DocumentUpload() {
   );
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="page-typography space-y-8 p-1">
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -345,23 +345,7 @@ export default function DocumentUpload() {
       </div>
 
       {/* Footer Insight Section */}
-      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative">
-        <div className="relative z-10 text-center md:text-left">
-          <h3 className="text-2xl font-bold mb-2 tracking-tight">AI Schedule Intelligence</h3>
-          <p className="text-[#a0c4c2] text-sm max-w-lg font-medium leading-relaxed">
-            Our engine decomposes multi-page PDF schedules into structured WBS graphs. Click Generate to sync the latest extractions to the project timeline.
-          </p>
-        </div>
-        <button
-          onClick={generateArtifacts}
-          className="relative z-10 px-8 py-4 bg-[#12b3a8] text-white font-bold rounded-2xl hover:bg-[#0e9188] transition-all shadow-xl active:scale-95 flex items-center gap-3"
-        >
-          <Sparkles className="w-5 h-5" />
-          Sync AI Generation
-        </button>
-        {/* Decorative background element */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-      </div>
+
     </div>
   );
 }

@@ -12,6 +12,8 @@ import {
   WorkingCalendar,
   UnifiedPlanDraft,
   PlannedTaskNodeDraft,
+  InventoryDraft,
+  InventoryAllocationDraft,
 } from "./types";
 
 async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
@@ -122,6 +124,42 @@ export const api = {
         ...api.actorHeaders(),
       },
       body: JSON.stringify({ resource }),
+    }),
+  upsertInventory: (inventory: InventoryDraft) =>
+    request<BootstrapResponse>("/api/inventory/upsert", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...api.actorHeaders(),
+      },
+      body: JSON.stringify({ inventory }),
+    }),
+  allocateInventory: (payload: InventoryAllocationDraft) =>
+    request<BootstrapResponse>("/api/inventory/allocate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...api.actorHeaders(),
+      },
+      body: JSON.stringify({ payload }),
+    }),
+  addInventoryUnit: (unit: string) =>
+    request<BootstrapResponse>("/api/inventory/units", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...api.actorHeaders(),
+      },
+      body: JSON.stringify({ unit }),
+    }),
+  removeInventoryUnit: (unit: string) =>
+    request<BootstrapResponse>("/api/inventory/units", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...api.actorHeaders(),
+      },
+      body: JSON.stringify({ unit }),
     }),
   updateTask: (taskId: string, updates: TaskUpdateDraft) =>
     request<BootstrapResponse>(`/api/tasks/${taskId}`, {

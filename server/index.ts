@@ -44,12 +44,18 @@ import {
   updateDocument,
   updateProjectRecord,
   upsertCalendar,
+  upsertInventory,
+  allocateInventory,
+  addInventoryUnit,
+  removeInventoryUnit,
   upsertResource,
   initializeStore,
 } from "./store";
 import {
   AggregatedExtraction,
   DocumentRecord,
+  InventoryAllocationInput,
+  PartialInventory,
   PartialTask,
   TaskStatus,
   UserRole,
@@ -356,6 +362,75 @@ app.post("/api/resources/upsert", (req, res) => {
     res.json(getBootstrapResponse());
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Resource upsert failed." });
+  }
+});
+
+app.post("/api/inventory/upsert", (req, res) => {
+  try {
+    const inventory = req.body?.inventory as PartialInventory | undefined;
+    if (!inventory?.name || !inventory?.unit) {
+      res.status(400).json({ error: "Inventory name and unit are required." });
+      return;
+    }
+    if (!inventory.category || !["equipment", "material"].includes(inventory.category)) {
+      res.status(400).json({ error: "Inventory category is required (equipment/material)." });
+      return;
+    }
+    if (Number(inventory.quantity ?? 0) <= 0) {
+      res.status(400).json({ error: "Inventory quantity must be greater than 0." });
+      return;
+    }
+    const { role, name } = getActor(req);
+    upsertInventory(inventory, name, role);
+    res.json(getBootstrapResponse());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Inventory upsert failed." });
+  }
+});
+
+app.post("/api/inventory/units", (req, res) => {
+  try {
+    const unit = typeof req.body?.unit === "string" ? req.body.unit : "";
+    const { role, name } = getActor(req);
+    addInventoryUnit(unit, name, role);
+    res.json(getBootstrapResponse());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Could not add unit." });
+  }
+});
+
+app.delete("/api/inventory/units", (req, res) => {
+  try {
+    const unit =
+      typeof req.body?.unit === "string"
+        ? req.body.unit
+        : typeof req.query?.unit === "string"
+          ? req.query.unit
+          : "";
+    const { role, name } = getActor(req);
+    removeInventoryUnit(unit, name, role);
+    res.json(getBootstrapResponse());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Could not remove unit." });
+  }
+});
+
+app.post("/api/inventory/allocate", (req, res) => {
+  try {
+    const payload = req.body?.payload as InventoryAllocationInput | undefined;
+    if (!payload?.inventoryId || !payload?.resourceId || !payload?.taskId) {
+      res.status(400).json({ error: "inventoryId, resourceId and taskId are required." });
+      return;
+    }
+    if (Number(payload.quantity ?? 0) <= 0) {
+      res.status(400).json({ error: "Allocation quantity must be greater than 0." });
+      return;
+    }
+    const { role, name } = getActor(req);
+    allocateInventory(payload, name, role);
+    res.json(getBootstrapResponse());
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : "Inventory allocation failed." });
   }
 });
 

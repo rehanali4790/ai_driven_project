@@ -31,6 +31,9 @@ export const emptyState: AppState = {
   tasks: [],
   resources: [],
   allocations: [],
+  inventories: [],
+  inventoryAllocations: [],
+  inventoryUnits: ["unit", "kg", "litre", "meter", "box", "camera", "set"],
   risks: [],
   milestones: [],
   activities: [],
@@ -353,6 +356,9 @@ export const seedState: AppState = {
       allocation: 90,
     },
   ],
+  inventories: [],
+  inventoryAllocations: [],
+  inventoryUnits: ["unit", "kg", "litre", "meter", "box", "camera", "set"],
   risks: [
     {
       id: "risk-1",

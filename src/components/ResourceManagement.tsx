@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Users,
   Plus,
@@ -13,34 +13,93 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
-export default function ResourceManagement() {
-  const { state, upsertResource, userRole } = useProjectData();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [scopeTab, setScopeTab] = useState<'all' | 'global' | 'project'>('all');
-  const [activeTab, setActiveTab] = useState<'all' | 'people' | 'equipment'>('all');
-  const [showForm, setShowForm] = useState(false);
-  const [resourceDraft, setResourceDraft] = useState({
+
+type ResourceViewMode = 'human' | 'equipment' | 'material';
+
+interface ResourceManagementProps {
+  resourceView?: ResourceViewMode;
+}
+
+const resourceTypeByView: Record<ResourceViewMode, 'person' | 'equipment' | 'material'> = {
+  human: 'person',
+  equipment: 'equipment',
+  material: 'material',
+};
+
+const viewHeading: Record<ResourceViewMode, { title: string; subtitle: string }> = {
+  human: {
+    title: 'Human Resource Management',
+    subtitle: 'Manage project workforce, skills, and assignment capacity',
+  },
+  equipment: {
+    title: 'Asset / Equipment Management',
+    subtitle: 'Track equipment inventory, utilization, and deployment readiness',
+  },
+  material: {
+    title: 'Material Supply Management',
+    subtitle: 'Control material quantities, suppliers, and replenishment planning',
+  },
+};
+
+/** Empty is allowed (optional contact). Non-empty must look like a real address. */
+function contactEmailIssue(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (t.length > 254) return 'Email is too long.';
+  const ok = /^[^\s@]{1,64}@[^\s@]{1,251}$/.test(t) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+  if (!ok) return 'Enter a valid email (e.g. name@company.com).';
+  return '';
+}
+
+function createResourceDraft(type: 'person' | 'equipment' | 'material') {
+  return {
     name: '',
     role: '',
-    type: 'person' as 'person' | 'equipment' | 'material',
+    type,
     allocated: 0,
     capacity: 100,
     status: 'available' as 'available' | 'allocated' | 'on_leave',
     costRate: 0,
     rateBasis: 'hour' as const,
     scope: 'project' as 'global' | 'project',
-    skills: '',
+    skills: type === 'material' ? 'unit' : '',
     email: '',
-  });
+  };
+}
+
+export default function ResourceManagement({ resourceView = 'human' }: ResourceManagementProps) {
+  const { state, upsertResource, userRole } = useProjectData();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [scopeTab, setScopeTab] = useState<'all' | 'global' | 'project'>('all');
+  const forcedType = resourceTypeByView[resourceView];
+  const [activeTab, setActiveTab] = useState<'all' | 'people' | 'equipment'>(() =>
+    forcedType === 'person' ? 'people' : forcedType === 'equipment' ? 'equipment' : 'all',
+  );
+  const [showForm, setShowForm] = useState(false);
+  const [resourceDraft, setResourceDraft] = useState(() => createResourceDraft(forcedType));
+  const [contactEmailError, setContactEmailError] = useState('');
 
   const resources = state?.resources ?? [];
   const canManageResources = userRole === "admin" || userRole === "manager";
   const canOrgResources = userRole === "admin";
   const allocations = state?.allocations ?? [];
+  const heading = viewHeading[resourceView];
+
+  useEffect(() => {
+    setResourceDraft(createResourceDraft(forcedType));
+    setScopeTab('all');
+    setActiveTab(forcedType === 'person' ? 'people' : forcedType === 'equipment' ? 'equipment' : 'all');
+    setContactEmailError('');
+  }, [forcedType]);
+
+  useEffect(() => {
+    if (!showForm) setContactEmailError('');
+  }, [showForm]);
 
   const filteredResources = resources.filter((resource) => {
     const matchesSearch = resource.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       resource.role.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesViewType = resource.type === forcedType;
     const matchesTab = activeTab === 'all' ||
       (activeTab === 'people' && resource.type === 'person') ||
       (activeTab === 'equipment' && resource.type === 'equipment');
@@ -48,7 +107,7 @@ export default function ResourceManagement() {
       scopeTab === 'all' ||
       (scopeTab === 'global' && resource.scope === 'global') ||
       (scopeTab === 'project' && resource.scope === 'project');
-    return matchesSearch && matchesTab && matchesScope;
+    return matchesSearch && matchesViewType && matchesTab && matchesScope;
   });
 
   const allocationCountByResource = useMemo(() => {
@@ -59,6 +118,24 @@ export default function ResourceManagement() {
     return map;
   }, [allocations]);
 
+  const baseInventoryUnits = useMemo(
+    () => (state?.inventoryUnits?.length ? state.inventoryUnits : ["unit", "kg", "litre", "meter", "box"]),
+    [state?.inventoryUnits],
+  );
+
+  const materialUomChoices = useMemo(() => {
+    const raw = resourceDraft.skills.split(",")[0]?.trim() ?? "";
+    const s = new Set(baseInventoryUnits);
+    if (raw) s.add(raw);
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [baseInventoryUnits, resourceDraft.skills]);
+
+  const materialUomValue = useMemo(() => {
+    const raw = resourceDraft.skills.split(",")[0]?.trim() ?? "";
+    const hit = materialUomChoices.find((u) => raw && u.toLowerCase() === raw.toLowerCase());
+    return hit ?? materialUomChoices[0] ?? "unit";
+  }, [resourceDraft.skills, materialUomChoices]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available': return 'bg-[#f0f9f8] text-[#12b3a8]';
@@ -68,20 +145,20 @@ export default function ResourceManagement() {
     }
   };
 
-  const totalCost = resources.reduce((sum, r) => sum + (r.costRate * r.allocated / 100), 0);
-  const avgUtilization = resources.length
-    ? resources.reduce((sum, r) => sum + r.allocated, 0) / resources.length
+  const totalCost = filteredResources.reduce((sum, r) => sum + (r.costRate * r.allocated / 100), 0);
+  const avgUtilization = filteredResources.length
+    ? filteredResources.reduce((sum, r) => sum + r.allocated, 0) / filteredResources.length
     : 0;
 
   if (!state) return null;
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="page-typography space-y-8 p-1">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Resource Management</h1>
-          <p className="text-gray-500 text-sm mt-1 font-medium">Coordinate project personnel, assets, and organizational capacity</p>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">{heading.title}</h1>
+          <p className="text-gray-500 text-sm mt-1 font-medium">{heading.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2">
@@ -103,7 +180,11 @@ export default function ResourceManagement() {
         <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 p-8">
           <h3 className="text-sm font-bold text-[#0f3433] uppercase tracking-widest mb-6 flex items-center gap-2">
             <Target className="w-4 h-4 text-[#12b3a8]" />
-            Entity Configuration
+            {resourceView === 'human'
+              ? 'Human Resource Form'
+              : resourceView === 'equipment'
+                ? 'Asset / Equipment Form'
+                : 'Material Supply Form'}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="flex flex-col gap-1.5">
@@ -141,8 +222,9 @@ export default function ResourceManagement() {
                <div className="relative">
                  <select
                   value={resourceDraft.type}
-                  onChange={(e) => setResourceDraft({ ...resourceDraft, type: e.target.value as 'person' | 'equipment' | 'material' })}
-                  className="bg-gray-50 border-none rounded-xl px-3 py-2.5 pr-10 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none appearance-none w-full"
+                  disabled
+                  onChange={() => undefined}
+                  className="bg-gray-50 border-none rounded-xl px-3 py-2.5 pr-10 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none appearance-none w-full disabled:opacity-70"
                 >
                   <option value="person">Human Resource</option>
                   <option value="equipment">Asset / Equipment</option>
@@ -194,14 +276,32 @@ export default function ResourceManagement() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Contact Email</label>
-                  <input 
-                    value={resourceDraft.email} 
-                    onChange={(e) => setResourceDraft({...resourceDraft, email: e.target.value})} 
-                    placeholder="email@example.com" 
+                  <label htmlFor="hr-contact-email" className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">
+                    Contact Email
+                  </label>
+                  <input
+                    id="hr-contact-email"
+                    value={resourceDraft.email}
+                    onChange={(e) => {
+                      setResourceDraft({ ...resourceDraft, email: e.target.value });
+                      setContactEmailError('');
+                    }}
+                    onBlur={(e) => setContactEmailError(contactEmailIssue(e.target.value))}
+                    placeholder="email@example.com"
                     type="email"
-                    className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none" 
+                    autoComplete="email"
+                    aria-invalid={!!contactEmailError}
+                    className={`bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:bg-white transition-all outline-none ${
+                      contactEmailError
+                        ? 'ring-2 ring-red-400 focus:ring-red-400'
+                        : 'focus:ring-2 focus:ring-[#12b3a8]/20'
+                    }`}
                   />
+                  {contactEmailError ? (
+                    <p className="text-xs font-medium text-red-600 ml-1" role="alert">
+                      {contactEmailError}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Skills (comma separated)</label>
@@ -290,13 +390,26 @@ export default function ResourceManagement() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Unit of Measure</label>
-                  <input 
-                    value={resourceDraft.skills} 
-                    onChange={(e) => setResourceDraft({...resourceDraft, skills: e.target.value})} 
-                    placeholder="e.g., kg, m³, units" 
-                    className="bg-gray-50 border-none rounded-xl px-4 py-2.5 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none" 
-                  />
+                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">
+                    Unit of Measure
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={materialUomValue}
+                      onChange={(e) => setResourceDraft({ ...resourceDraft, skills: e.target.value })}
+                      className="w-full bg-gray-50 border-none rounded-xl px-3 py-2.5 pr-10 text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white transition-all outline-none appearance-none"
+                    >
+                      {materialUomChoices.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  </div>
+                  <p className="text-[10px] text-gray-400 ml-1">
+                    Edit the master list under <strong className="text-[#0f3433]">Measurement Units</strong>.
+                  </p>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest ml-1">Supplier/Vendor</label>
@@ -314,11 +427,20 @@ export default function ResourceManagement() {
             <div className="lg:col-span-4 mt-2">
               <button
                 onClick={async () => {
+                  if (resourceDraft.type === 'person') {
+                    const err = contactEmailIssue(resourceDraft.email);
+                    if (err) {
+                      setContactEmailError(err);
+                      return;
+                    }
+                  }
                   await upsertResource({
                     ...resourceDraft,
+                    email: resourceDraft.email.trim(),
                     skills: resourceDraft.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
                   });
-                  setResourceDraft({ name: '', role: '', type: 'person', allocated: 0, capacity: 100, status: 'available', costRate: 0, rateBasis: 'hour', scope: 'project', skills: '', email: '' });
+                  setResourceDraft(createResourceDraft(forcedType));
+                  setContactEmailError('');
                   setShowForm(false);
                 }}
                 className="w-full bg-[#0f3433] hover:bg-black text-white font-bold text-xs uppercase tracking-widest rounded-xl py-3 transition-all active:scale-95 shadow-lg"
@@ -333,7 +455,7 @@ export default function ResourceManagement() {
       {/* Snapshot Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Network Size', val: resources.length, icon: Users, color: 'text-[#12b3a8]' },
+          { label: 'Network Size', val: filteredResources.length, icon: Users, color: 'text-[#12b3a8]' },
           { label: 'Load Factor', val: `${avgUtilization.toFixed(0)}%`, icon: TrendingUp, color: 'text-emerald-500' },
           { label: 'Burn Rate', val: `PKR ${(totalCost / 1000).toFixed(0)}K`, icon: DollarSign, color: 'text-[#0f3433]' },
           { label: 'Assignments', val: allocations.length, icon: Briefcase, color: 'text-amber-500' }
@@ -357,18 +479,15 @@ export default function ResourceManagement() {
         {/* Toolbar */}
         <div className="p-5 border-b border-gray-50 flex flex-wrap items-center justify-between gap-6">
           <div className="flex flex-wrap items-center gap-3">
-             <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                {([['all', 'All'], ['people', 'People'], ['equipment', 'Assets']] as const).map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => setActiveTab(id)}
-                    className={`px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-widest rounded-lg transition-all ${
-                      activeTab === id ? 'bg-white text-[#12b3a8] shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+             <div className="flex items-center gap-2 px-4 py-2 bg-[#f0f9f8] rounded-xl border border-[#b9ece8]">
+               <span className="w-2 h-2 rounded-full bg-[#12b3a8]" />
+               <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#0f3433]">
+                 {resourceView === 'human'
+                   ? 'Human Resource Records'
+                   : resourceView === 'equipment'
+                     ? 'Asset / Equipment Records'
+                     : 'Material Supply Records'}
+               </span>
              </div>
              
              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-100">
@@ -524,50 +643,7 @@ export default function ResourceManagement() {
       </div>
 
       {/* Allocation Log - Reference Style */}
-      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-8">
-             <div className="flex items-center gap-3">
-                <Target className="w-5 h-5 text-[#12b3a8]" />
-                <h3 className="text-xl font-bold tracking-tight">Active Allocation Manifest</h3>
-             </div>
-             <button className="text-[11px] font-bold uppercase tracking-widest text-[#a0c4c2] hover:text-white flex items-center gap-2">
-                Audit Timeline <ArrowRight className="w-3.5 h-3.5" />
-             </button>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {allocations.slice(0, 4).map((allocation) => {
-              const resource = resources.find(r => r.id === allocation.resourceId);
-              return (
-                <div key={allocation.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors group">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className="w-9 h-9 bg-[#12b3a8] rounded-xl flex items-center justify-center text-white text-[10px] font-black">
-                      {resource?.name ? resource.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'AI'}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{resource?.name || 'External Agency'}</p>
-                      <p className="text-[10px] text-[#a0c4c2] font-bold uppercase truncate tracking-tighter">{allocation.taskName}</p>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[12px] font-black text-[#12b3a8]">{allocation.allocation}%</p>
-                    <p className="text-[9px] text-[#a0c4c2] font-bold uppercase">
-                      {allocation.startDate} - {allocation.endDate}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {allocations.length === 0 && (
-             <p className="text-center py-4 text-[#a0c4c2] text-sm italic font-medium">No live allocations detected in current sprint dataset.</p>
-          )}
-        </div>
-        {/* Subtle decorative glow */}
-        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-[#12b3a8]/5 rounded-full blur-3xl"></div>
-      </div>
+      
     </div>
   );
 }

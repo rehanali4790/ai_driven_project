@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,26 +10,59 @@ import {
   ZoomIn,
   ZoomOut,
   Layers,
-  MousePointer2
+  MousePointer2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
-import { TaskStatus } from '@/lib/types';
 
 type ZoomLevel = 'day' | 'week' | 'month' | 'quarter';
 
 export default function GanttChart() {
-  const { state, generateArtifacts, updateTaskStatus, assignTask, moveTask, userRole, saveBaseline } =
+  const { state, generateArtifacts } =
     useProjectData();
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('week');
   const [zoomScale, setZoomScale] = useState(100);
-  const [showCritical, setShowCritical] = useState(false);
   const [showBaseline, setShowBaseline] = useState(true);
   const [showDependencies, setShowDependencies] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const ganttCardRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!ganttCardRef.current) return;
+    if (!document.fullscreenElement) {
+      ganttCardRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
 
   const tasks = state?.tasks ?? [];
   const resources = state?.resources ?? [];
+  const today = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+
+  const toDateOnly = (value: string) => {
+    const date = new Date(value);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  };
+
+  const deriveAutoStatus = (task: (typeof tasks)[number]) => {
+    const start = toDateOnly(task.start);
+    const end = toDateOnly(task.end);
+    if (task.progress >= 100) return 'completed';
+    if (today < start) return 'not_started';
+    if (today > end) return 'at_risk';
+    return 'in_progress';
+  };
+
+  const isLateCompleted = (task: (typeof tasks)[number]) =>
+    task.progress >= 100 && today > toDateOnly(task.end);
+
   const orderedTasks = useMemo(() => {
     return [...tasks].sort((a, b) => {
       const parentA = (a.parentActivity ?? "").toLowerCase();
@@ -46,9 +79,16 @@ export default function GanttChart() {
   const totalDays = useMemo(() => {
     if (!tasks.length) return 120;
     const start = new Date(Math.min(...tasks.map((task) => new Date(task.start).getTime())));
-    const end = new Date(Math.max(...tasks.map((task) => new Date(task.end).getTime())));
+    const end = new Date(
+      Math.max(
+        ...tasks.map((task) => new Date(task.end).getTime()),
+        ...tasks
+          .filter((task) => isLateCompleted(task))
+          .map(() => today.getTime()),
+      ),
+    );
     return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-  }, [tasks]);
+  }, [tasks, today]);
 
   const chartStart = useMemo(
     () =>
@@ -79,7 +119,12 @@ export default function GanttChart() {
       ? new Date(Math.min(...tasks.map((task) => new Date(task.start).getTime())))
       : new Date('2025-09-01');
     const end = tasks.length
-      ? new Date(Math.max(...tasks.map((task) => new Date(task.end).getTime())))
+      ? new Date(
+          Math.max(
+            ...tasks.map((task) => new Date(task.end).getTime()),
+            ...tasks.filter((task) => isLateCompleted(task)).map(() => today.getTime()),
+          ),
+        )
       : new Date('2026-12-31');
     let current = new Date(start);
 
@@ -97,14 +142,19 @@ export default function GanttChart() {
   const statusColors = {
     completed: 'bg-[#12b3a8]',
     in_progress: 'bg-emerald-400',
-    not_started: 'bg-gray-200',
-    at_risk: 'bg-amber-400',
+    not_started: 'bg-amber-400',
+    at_risk: 'bg-red-400',
   };
 
-  const filteredTasks = showCritical ? orderedTasks.filter(t => t.isCritical) : orderedTasks;
-  const canEditTasks = userRole !== "viewer";
+  const getAutoStatus = (task: (typeof tasks)[number]) => deriveAutoStatus(task);
+
+  const getTaskColorClass = (task: (typeof tasks)[number]) => {
+    if (task.isOverdue) return 'bg-red-600';
+    return statusColors[getAutoStatus(task)];
+  };
+
+  const filteredTasks = orderedTasks;
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? filteredTasks[0] ?? null;
-  const resourceMap = useMemo(() => new Map(resources.map((resource) => [resource.id, resource.name])), [resources]);
   
   const dependencySegments = useMemo(() => {
     if (!showDependencies) return [];
@@ -142,13 +192,24 @@ export default function GanttChart() {
   if (!state) return null;
 
   return (
-    <div className="space-y-8 p-1">
+    <div className="page-typography space-y-8 p-1">
+
+
+
+
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Chart</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Visual project timeline and resource allocation</p>
         </div>
+
+
+
+
+
+        
         <div className="flex flex-wrap items-center gap-3">
           <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2">
             <Download className="w-4 h-4" />
@@ -165,10 +226,38 @@ export default function GanttChart() {
             {isUpdating ? 'Syncing...' : 'AI Update'}
           </button>
         </div>
+
+
+        
+      </div>
+
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {[
+          { label: 'Dataset Size', val: filteredTasks.length, icon: Layers, color: 'text-[#12b3a8]' },
+          { label: 'Tasks Closed', val: filteredTasks.filter(t => getAutoStatus(t) === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
+          { label: 'Work-In-Progress', val: filteredTasks.filter(t => getAutoStatus(t) === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
+          { label: 'Overdue', val: filteredTasks.filter(t => t.isOverdue).length, icon: AlertTriangle, color: 'text-red-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4">
+            <div className={`p-3 bg-gray-50 rounded-xl ${stat.color}`}>
+              <stat.icon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-[#0f3433] leading-none mb-1">{stat.val}</p>
+              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Main Gantt Card */}
-      <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+      <div
+        ref={ganttCardRef}
+        className={`bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col ${
+          isFullscreen ? "!rounded-none !border-0" : ""
+        }`}
+      >
         {/* Controls Toolbar */}
         <div className="p-4 border-b border-gray-50 bg-white flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -189,14 +278,6 @@ export default function GanttChart() {
 
             {/* Feature Toggles */}
             <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setShowCritical(!showCritical)}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all border ${
-                  showCritical ? 'bg-red-50 border-red-100 text-red-500' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                Critical Path
-              </button>
               <button
                 onClick={() => setShowBaseline(!showBaseline)}
                 className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all border ${
@@ -220,7 +301,7 @@ export default function GanttChart() {
             </div>
           </div>
 
-          {/* Date Range Navigation */}
+          {/* Date Range Navigation + Fullscreen */}
           <div className="flex items-center gap-3">
             <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400"><ChevronLeft className="w-4 h-4" /></button>
             <div className="flex flex-col items-center">
@@ -230,16 +311,27 @@ export default function GanttChart() {
                 </span>
             </div>
             <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400"><ChevronRight className="w-4 h-4" /></button>
+
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 hover:bg-[#f0f9f8] rounded-xl text-gray-400 hover:text-[#12b3a8] transition-all ml-2"
+              title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
         {/* Scrollable Gantt Body */}
-        <div className="overflow-x-auto bg-white">
+        <div
+          className={`overflow-auto bg-white ${isFullscreen ? "flex-1" : ""}`}
+          style={isFullscreen ? {} : { minHeight: '960px', maxHeight: '80vh' }}
+        >
           <div className="min-w-full" style={{ width: `${totalDays * dayWidth + 340}px` }}>
             <div className="flex">
               {/* Task Sidebar */}
               <div className="w-[340px] flex-shrink-0 border-r border-gray-100 bg-gray-50/30 sticky left-0 z-20 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 sticky top-0 z-10 bg-white">
                   <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">WBS Element / Activity</span>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -256,22 +348,29 @@ export default function GanttChart() {
                           {task.isMilestone ? (
                             <div className="w-2.5 h-2.5 bg-amber-400 rotate-45 flex-shrink-0" />
                           ) : (
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColors[task.status]}`} />
+                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${getTaskColorClass(task)}`} />
                           )}
                           <span className="text-[12px] font-bold text-[#0f3433] truncate leading-tight">
-                             {task.activityId ? `${task.activityId}: ` : ''}{task.name}
+                             {task.name}
                           </span>
                         </div>
                         <span className={`px-2 py-0.5 text-[9px] font-black rounded-lg uppercase tracking-tight ${
-                          task.status === 'completed' ? 'bg-[#f0f9f8] text-[#12b3a8]' : 'bg-gray-100 text-gray-400'
+                          task.isOverdue
+                            ? 'bg-red-100 text-red-700'
+                            : getAutoStatus(task) === 'completed'
+                              ? 'bg-[#f0f9f8] text-[#12b3a8]'
+                              : getAutoStatus(task) === 'not_started'
+                                ? 'bg-amber-50 text-amber-600'
+                                : getAutoStatus(task) === 'at_risk'
+                                  ? 'bg-red-50 text-red-600'
+                                  : 'bg-emerald-50 text-emerald-600'
                         }`}>
-                          {task.progress}%
+                          {task.isOverdue ? 'OVERDUE' : `${task.progress}%`}
                         </span>
                       </div>
                       {/* Secondary Info Layer */}
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                          <span className="text-[9px] font-bold text-gray-400 uppercase">{task.assigned || 'Unassigned'}</span>
-                         {canEditTasks && <button onClick={() => {}} className="text-[9px] font-black text-[#12b3a8] uppercase">Edit</button>}
                       </div>
                     </div>
                   ))}
@@ -309,51 +408,64 @@ export default function GanttChart() {
                   </div>
 
                   {/* Task Bars */}
-                  {filteredTasks.map((task, index) => (
-                    <div
-                      key={task.id}
-                      className="absolute flex items-center"
-                      style={{ top: `${index * 48}px`, height: '48px' }}
-                    >
-                      {task.isMilestone ? (
-                        <div
-                          className="absolute h-4 w-4 bg-amber-400 rotate-45 shadow-sm border border-white"
-                          style={{ left: `${getTaskPosition(new Date(task.start))}px` }}
-                        />
-                      ) : (
-                        <div className="relative h-full flex items-center">
-                          {/* Baseline Shadow */}
-                          {showBaseline && task.baselineStart && task.baselineEnd && (
-                            <div
-                              className="absolute h-2.5 rounded-full bg-gray-100/80 border border-gray-200/50 -bottom-1"
-                              style={{
-                                left: `${getTaskPosition(new Date(task.baselineStart))}px`,
-                                width: `${getTaskWidth(new Date(task.baselineStart), new Date(task.baselineEnd))}px`,
-                              }}
-                            />
-                          )}
-                          {/* Primary Bar */}
+                  {filteredTasks.map((task, index) => {
+                    const autoStatus = getAutoStatus(task);
+                    const taskStart = new Date(task.start);
+                    const taskEnd = new Date(task.end);
+                    const lateCompleted = isLateCompleted(task);
+                    const delayStart = lateCompleted ? getTaskPosition(taskEnd) : 0;
+                    const delayWidth = lateCompleted ? getTaskWidth(taskEnd, today) : 0;
+                    return (
+                      <div
+                        key={task.id}
+                        className="absolute flex items-center"
+                        style={{ top: `${index * 48}px`, height: '48px' }}
+                      >
+                        {task.isMilestone ? (
                           <div
-                            className={`absolute h-4 rounded-full shadow-sm transition-all group ${statusColors[task.status]} ${
-                              task.isCritical ? "ring-2 ring-red-400/30" : ""
-                            }`}
-                            style={{
-                              left: `${getTaskPosition(new Date(task.start))}px`,
-                              width: `${getTaskWidth(new Date(task.start), new Date(task.end))}px`,
-                            }}
-                          >
-                            {/* Inner Progress Fill */}
-                            <div className="h-full bg-white/20 rounded-full" style={{ width: `${task.progress}%` }} />
-                            
-                            {/* Hover Details Pin */}
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#0f3433] text-white text-[9px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                               {task.progress}% Complete
+                            className="absolute h-4 w-4 bg-amber-400 rotate-45 shadow-sm border border-white"
+                            style={{ left: `${getTaskPosition(taskStart)}px` }}
+                          />
+                        ) : (
+                          <div className="relative h-full flex items-center">
+                            {showBaseline && task.baselineStart && task.baselineEnd && (
+                              <div
+                                className="absolute h-2.5 rounded-full bg-gray-100/80 border border-gray-200/50 -bottom-1"
+                                style={{
+                                  left: `${getTaskPosition(new Date(task.baselineStart))}px`,
+                                  width: `${getTaskWidth(new Date(task.baselineStart), new Date(task.baselineEnd))}px`,
+                                }}
+                              />
+                            )}
+                            <div
+                              className={`absolute h-4 rounded-full shadow-sm transition-all group ${getTaskColorClass(task)} ${
+                                task.isOverdue ? "ring-2 ring-red-500/50" : ""
+                              }`}
+                              style={{
+                                left: `${getTaskPosition(taskStart)}px`,
+                                width: `${getTaskWidth(taskStart, taskEnd)}px`,
+                              }}
+                            >
+                              <div className="h-full bg-white/20 rounded-full" style={{ width: `${task.progress}%` }} />
+                              <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#0f3433] text-white text-[9px] font-bold px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                                {task.progress}% Complete
+                              </div>
                             </div>
+                            {lateCompleted && (
+                              <div
+                                className="absolute h-3 rounded-full bg-red-400/90 border border-red-300"
+                                style={{
+                                  left: `${delayStart}px`,
+                                  width: `${delayWidth}px`,
+                                }}
+                                title="Completed after due date"
+                              />
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Dependency SVG Layer */}
                   {showDependencies && (
@@ -384,103 +496,10 @@ export default function GanttChart() {
       </div>
 
       {/* Summary Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        {[
-          { label: 'Dataset Size', val: filteredTasks.length, icon: Layers, color: 'text-[#12b3a8]' },
-          { label: 'Tasks Closed', val: filteredTasks.filter(t => t.status === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
-          { label: 'Work-In-Progress', val: filteredTasks.filter(t => t.status === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
-          { label: 'Critical Path', val: filteredTasks.filter(t => t.isCritical).length, icon: AlertTriangle, color: 'text-red-500' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4">
-            <div className={`p-3 bg-gray-50 rounded-xl ${stat.color}`}>
-              <stat.icon className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-[#0f3433] leading-none mb-1">{stat.val}</p>
-              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {selectedTask && (
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-widest text-gray-400">Task Control Center</p>
-              <h3 className="text-lg font-bold text-[#0f3433] mt-1">{selectedTask.name}</h3>
-            </div>
-            <div className="text-sm text-gray-500">
-              {selectedTask.start} - {selectedTask.end}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Assignment</label>
-              <select
-                disabled={!canEditTasks}
-                value={selectedTask.assignedResourceId || ""}
-                onChange={(e) => void assignTask(selectedTask.id, e.target.value)}
-                className="mt-1 w-full bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 text-sm"
-              >
-                <option value="">Unassigned</option>
-                {resources.map((resource) => (
-                  <option key={resource.id} value={resource.id}>
-                    {resource.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Status</label>
-              <select
-                disabled={!canEditTasks}
-                value={selectedTask.status}
-                onChange={(e) => void updateTaskStatus(selectedTask.id, e.target.value as TaskStatus)}
-                className="mt-1 w-full bg-gray-50 rounded-lg border border-gray-100 px-3 py-2 text-sm"
-              >
-                <option value="not_started">Not Started</option>
-                <option value="in_progress">In Progress</option>
-                <option value="at_risk">At Risk</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Schedule</label>
-              <button
-                disabled={!canEditTasks}
-                onClick={() => void moveTask(selectedTask.id, selectedTask.start, selectedTask.end)}
-                className="mt-1 w-full bg-[#0f3433] text-white rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50"
-              >
-                Confirm Current Dates
-              </button>
-            </div>
-          </div>
-          <p className="mt-4 text-xs text-gray-500">
-            Allocated to: <span className="font-semibold text-[#0f3433]">{selectedTask.assignedResourceId ? (resourceMap.get(selectedTask.assignedResourceId) || selectedTask.assigned || "Unassigned") : (selectedTask.assigned || "Unassigned")}</span>
-          </p>
-        </div>
-      )}
 
       {/* Bottom Context Card */}
-      <div className="bg-[#0f3433] rounded-[28px] p-8 text-white relative overflow-hidden shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-center md:text-left">
-            <h3 className="text-lg font-bold mb-2">Automated Lifecycle Tracking</h3>
-            <p className="text-[#a0c4c2] text-sm max-w-xl font-medium leading-relaxed">
-              This Gantt structure is derived from AI ingestion of project schedules. Updates to dates and status are synchronized with the primary WBS and document repository in real-time.
-            </p>
-          </div>
-          <button
-            onClick={() => void saveBaseline(state.project.id)}
-            className="px-8 py-3 bg-[#12b3a8] text-white text-sm font-bold rounded-xl hover:bg-[#0e9188] transition-all shadow-lg shadow-[#12b3a8]/20 active:scale-95"
-          >
-            Freeze Master Baseline
-          </button>
-        </div>
-        {/* Background glow decoration */}
-        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-[#12b3a8]/10 rounded-full blur-3xl"></div>
-      </div>
+
     </div>
   );
 }

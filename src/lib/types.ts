@@ -7,6 +7,11 @@ export type ViewType =
   | "gantt_editor"
   | "planning_studio"
   | "resources"
+  | "resources_human"
+  | "resources_equipment"
+  | "resources_material"
+  | "inventory"
+  | "units"
   | "calendar"
   | "ai"
   | "documents";
@@ -106,6 +111,7 @@ export interface GanttTask {
   dependencyLagByPredecessor?: Record<string, number>;
   isMilestone: boolean;
   isCritical: boolean;
+  isOverdue?: boolean;
   assigned: string;
   assignedResourceId?: string;
   parentActivity?: string;
@@ -141,6 +147,26 @@ export interface AllocationItem {
   startDate: string;
   endDate: string;
   allocation: number;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: "equipment" | "material";
+  quantity: number;
+  singleUnitPrice?: number;
+  bulkPrice?: number;
+  unit: string;
+  updatedAt: string;
+}
+
+export interface InventoryAllocationItem {
+  id: string;
+  inventoryId: string;
+  resourceId: string;
+  taskId: string;
+  quantity: number;
+  createdAt: string;
 }
 
 export interface RiskItem {
@@ -190,6 +216,9 @@ export interface AppState {
   tasks: GanttTask[];
   resources: ResourceItem[];
   allocations: AllocationItem[];
+  inventories: InventoryItem[];
+  inventoryAllocations: InventoryAllocationItem[];
+  inventoryUnits: string[];
   risks: RiskItem[];
   milestones: Milestone[];
   activities: ActivityItem[];
@@ -230,6 +259,23 @@ export interface ResourceDraft {
   id?: string;
   skills?: string[];
   email?: string;
+}
+
+export interface InventoryDraft {
+  id?: string;
+  name: string;
+  category: "equipment" | "material";
+  quantity: number;
+  singleUnitPrice?: number;
+  bulkPrice?: number;
+  unit: string;
+}
+
+export interface InventoryAllocationDraft {
+  inventoryId: string;
+  resourceId: string;
+  taskId: string;
+  quantity: number;
 }
 
 export interface TaskUpdateDraft {
@@ -281,5 +327,6 @@ export interface PlannedTaskNodeDraft {
   startDate?: string;
   predecessorTaskId?: string;
   assignedResourceId?: string;
+  assignedResourceIds?: string[];
   summary?: boolean;
 }

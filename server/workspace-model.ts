@@ -43,6 +43,9 @@ export function migrateLegacyAppStateToWorkspace(legacy: AppState, calendars: Wo
       ...legacy.project,
       calendarId: legacy.project.calendarId ?? defaultCal,
     },
+    inventories: legacy.inventories ?? [],
+    inventoryAllocations: legacy.inventoryAllocations ?? [],
+    inventoryUnits: legacy.inventoryUnits?.length ? legacy.inventoryUnits : ["unit", "kg", "litre", "meter", "box"],
   };
 
   const record: ProjectRecord = {
@@ -102,6 +105,9 @@ function hydrateAppState(state: AppState | undefined, projectId: string): AppSta
     resources,
     allocations,
     tasks: (state.tasks ?? []).map(hydrateTask),
+    inventories: state.inventories ?? [],
+    inventoryAllocations: state.inventoryAllocations ?? [],
+    inventoryUnits: state.inventoryUnits?.length ? state.inventoryUnits : ["unit", "kg", "litre", "meter", "box"],
   };
 }
 
