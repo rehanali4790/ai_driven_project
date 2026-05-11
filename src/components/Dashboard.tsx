@@ -53,7 +53,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     {
       label: 'Overdue Tasks',
       value: `${dashboard.overdueTasks}`,
-      trend: `${dashboard.criticalTasks} critical`,
+      trend: dashboard.overdueTasks === 0 ? 'All on track' : `${dashboard.overdueTasks} need attention`,
       positive: dashboard.overdueTasks === 0,
       icon: AlertTriangle,
       bg: dashboard.overdueTasks === 0 ? 'bg-emerald-50' : 'bg-red-50',

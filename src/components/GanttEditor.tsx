@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useProjectData } from "@/context/ProjectDataContext";
 import { TaskStatus } from "@/lib/types";
-import { Plus, Target, BarChart3, Edit3 } from "lucide-react";
+import { Plus, Target, BarChart3, Edit3, Lock } from "lucide-react";
 
 const statusOptions: TaskStatus[] = ["not_started", "in_progress", "at_risk", "completed"];
 
@@ -20,6 +20,34 @@ export default function GanttEditor() {
   const tasks = state?.tasks ?? [];
   const resources = state?.resources ?? [];
   const canEdit = userRole !== "viewer";
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  const blockedTaskIds = useMemo(() => {
+    const taskMap = new Map(tasks.map((t) => [t.id, t]));
+    tasks.forEach((t) => {
+      if (t.activityId) taskMap.set(t.activityId, t);
+      if (t.wbsNodeId) taskMap.set(t.wbsNodeId, t);
+    });
+    const blocked = new Set<string>();
+    tasks.forEach((t) => {
+      if (!t.dependencies?.length) return;
+      const hasIncompletePred = t.dependencies.some((depId) => {
+        const pred = taskMap.get(depId);
+        return pred && pred.status !== "completed";
+      });
+      if (hasIncompletePred) blocked.add(t.id);
+    });
+    return blocked;
+  }, [tasks]);
+
+  const safeUpdateTask = async (taskId: string, updates: Record<string, unknown>) => {
+    setUpdateError(null);
+    try {
+      await updateTask(taskId, updates as Parameters<typeof updateTask>[1]);
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : "Update failed.");
+    }
+  };
   const activeCalendar = useMemo(
     () => workspace?.calendars.find((calendar) => calendar.id === state?.project.calendarId) ?? workspace?.calendars?.[0],
     [state?.project.calendarId, workspace?.calendars],
@@ -61,6 +89,16 @@ export default function GanttEditor() {
 
   return (
     <div className="page-typography space-y-8 p-1">
+      {updateError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+          <Lock className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-red-700">{updateError}</p>
+            <p className="text-xs text-red-500 mt-1">Complete the predecessor task first, then update this task.</p>
+          </div>
+          <button onClick={() => setUpdateError(null)} className="ml-auto text-red-400 hover:text-red-600 text-sm font-bold">✕</button>
+        </div>
+      )}
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -249,34 +287,47 @@ export default function GanttEditor() {
                     </select>
                   </td>
                   <td className="px-6 py-4">
-                    <select 
-                      disabled={!canEdit} 
-                      className={`bg-transparent border-none p-0 text-[11px] font-extrabold uppercase tracking-widest focus:ring-0 cursor-pointer appearance-none ${
-                        task.status === 'completed' ? 'text-[#12b3a8]' : 'text-gray-500'
-                      }`}
-                      value={task.status} 
-                      onChange={(e) => void updateTask(task.id, { status: e.target.value as TaskStatus })}
-                    >
-                      {statusOptions.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
-                    </select>
+                    {blockedTaskIds.has(task.id) ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-widest text-gray-400" title="Predecessor task(s) not completed yet">
+                        <Lock className="w-3 h-3" /> Waiting
+                      </span>
+                    ) : (
+                      <select 
+                        disabled={!canEdit} 
+                        className={`bg-transparent border-none p-0 text-[11px] font-extrabold uppercase tracking-widest focus:ring-0 cursor-pointer appearance-none ${
+                          task.status === 'completed' ? 'text-[#12b3a8]' : 'text-gray-500'
+                        }`}
+                        value={task.status} 
+                        onChange={(e) => void safeUpdateTask(task.id, { status: e.target.value as TaskStatus })}
+                      >
+                        {statusOptions.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+                      </select>
+                    )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 max-w-[100px] relative h-1 bg-gray-100 rounded-full overflow-hidden">
-                        <div 
-                          className="absolute left-0 top-0 h-full bg-[#12b3a8] transition-all duration-500" 
-                          style={{ width: `${task.progress}%` }}
-                        />
-                        <input
-                          disabled={!canEdit}
-                          type="range" min={0} max={100}
-                          className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                          value={task.progress}
-                          onChange={(e) => void updateTask(task.id, { progress: Number(e.target.value) })}
-                        />
+                    {blockedTaskIds.has(task.id) ? (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Lock className="w-3 h-3" />
+                        <span className="text-[12px] font-bold">Blocked</span>
                       </div>
-                      <span className="text-[12px] font-black text-[#0f3433] w-10 text-right">{task.progress}%</span>
-                    </div>
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1 max-w-[100px] relative h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className="absolute left-0 top-0 h-full bg-[#12b3a8] transition-all duration-500" 
+                            style={{ width: `${task.progress}%` }}
+                          />
+                          <input
+                            disabled={!canEdit}
+                            type="range" min={0} max={100}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                            value={task.progress}
+                            onChange={(e) => void safeUpdateTask(task.id, { progress: Number(e.target.value) })}
+                          />
+                        </div>
+                        <span className="text-[12px] font-black text-[#0f3433] w-10 text-right">{task.progress}%</span>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

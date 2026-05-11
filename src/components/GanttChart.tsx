@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -10,7 +10,9 @@ import {
   ZoomIn,
   ZoomOut,
   Layers,
-  MousePointer2
+  MousePointer2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 
@@ -21,11 +23,21 @@ export default function GanttChart() {
     useProjectData();
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('week');
   const [zoomScale, setZoomScale] = useState(100);
-  const [showCritical, setShowCritical] = useState(false);
   const [showBaseline, setShowBaseline] = useState(true);
   const [showDependencies, setShowDependencies] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const ganttCardRef = useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!ganttCardRef.current) return;
+    if (!document.fullscreenElement) {
+      ganttCardRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  }, []);
 
   const tasks = state?.tasks ?? [];
   const resources = state?.resources ?? [];
@@ -137,12 +149,11 @@ export default function GanttChart() {
   const getAutoStatus = (task: (typeof tasks)[number]) => deriveAutoStatus(task);
 
   const getTaskColorClass = (task: (typeof tasks)[number]) => {
-    const autoStatus = getAutoStatus(task);
-    if (task.isCritical && autoStatus === 'in_progress') return 'bg-red-500';
-    return statusColors[autoStatus];
+    if (task.isOverdue) return 'bg-red-600';
+    return statusColors[getAutoStatus(task)];
   };
 
-  const filteredTasks = showCritical ? orderedTasks.filter(t => t.isCritical) : orderedTasks;
+  const filteredTasks = orderedTasks;
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? filteredTasks[0] ?? null;
   
   const dependencySegments = useMemo(() => {
@@ -182,12 +193,23 @@ export default function GanttChart() {
 
   return (
     <div className="page-typography space-y-8 p-1">
+
+
+
+
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Chart</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Visual project timeline and resource allocation</p>
         </div>
+
+
+
+
+
+        
         <div className="flex flex-wrap items-center gap-3">
           <button className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-sm flex items-center gap-2">
             <Download className="w-4 h-4" />
@@ -204,10 +226,38 @@ export default function GanttChart() {
             {isUpdating ? 'Syncing...' : 'AI Update'}
           </button>
         </div>
+
+
+        
+      </div>
+
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {[
+          { label: 'Dataset Size', val: filteredTasks.length, icon: Layers, color: 'text-[#12b3a8]' },
+          { label: 'Tasks Closed', val: filteredTasks.filter(t => getAutoStatus(t) === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
+          { label: 'Work-In-Progress', val: filteredTasks.filter(t => getAutoStatus(t) === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
+          { label: 'Overdue', val: filteredTasks.filter(t => t.isOverdue).length, icon: AlertTriangle, color: 'text-red-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4">
+            <div className={`p-3 bg-gray-50 rounded-xl ${stat.color}`}>
+              <stat.icon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-[#0f3433] leading-none mb-1">{stat.val}</p>
+              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Main Gantt Card */}
-      <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+      <div
+        ref={ganttCardRef}
+        className={`bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden flex flex-col ${
+          isFullscreen ? "!rounded-none !border-0" : ""
+        }`}
+      >
         {/* Controls Toolbar */}
         <div className="p-4 border-b border-gray-50 bg-white flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -228,14 +278,6 @@ export default function GanttChart() {
 
             {/* Feature Toggles */}
             <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setShowCritical(!showCritical)}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all border ${
-                  showCritical ? 'bg-red-50 border-red-100 text-red-500' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}
-              >
-                Critical Path
-              </button>
               <button
                 onClick={() => setShowBaseline(!showBaseline)}
                 className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all border ${
@@ -259,7 +301,7 @@ export default function GanttChart() {
             </div>
           </div>
 
-          {/* Date Range Navigation */}
+          {/* Date Range Navigation + Fullscreen */}
           <div className="flex items-center gap-3">
             <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400"><ChevronLeft className="w-4 h-4" /></button>
             <div className="flex flex-col items-center">
@@ -269,16 +311,27 @@ export default function GanttChart() {
                 </span>
             </div>
             <button className="p-2 hover:bg-gray-50 rounded-xl text-gray-400"><ChevronRight className="w-4 h-4" /></button>
+
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 hover:bg-[#f0f9f8] rounded-xl text-gray-400 hover:text-[#12b3a8] transition-all ml-2"
+              title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 
         {/* Scrollable Gantt Body */}
-        <div className="overflow-x-auto bg-white">
+        <div
+          className={`overflow-auto bg-white ${isFullscreen ? "flex-1" : ""}`}
+          style={isFullscreen ? {} : { minHeight: '960px', maxHeight: '80vh' }}
+        >
           <div className="min-w-full" style={{ width: `${totalDays * dayWidth + 340}px` }}>
             <div className="flex">
               {/* Task Sidebar */}
               <div className="w-[340px] flex-shrink-0 border-r border-gray-100 bg-gray-50/30 sticky left-0 z-20 shadow-[4px_0_10px_-4px_rgba(0,0,0,0.05)]">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 sticky top-0 z-10 bg-white">
                   <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">WBS Element / Activity</span>
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -302,17 +355,17 @@ export default function GanttChart() {
                           </span>
                         </div>
                         <span className={`px-2 py-0.5 text-[9px] font-black rounded-lg uppercase tracking-tight ${
-                          getAutoStatus(task) === 'completed'
-                            ? 'bg-[#f0f9f8] text-[#12b3a8]'
-                            : getAutoStatus(task) === 'not_started'
-                              ? 'bg-amber-50 text-amber-600'
-                              : getAutoStatus(task) === 'at_risk'
-                                ? 'bg-red-50 text-red-600'
-                                : task.isCritical
+                          task.isOverdue
+                            ? 'bg-red-100 text-red-700'
+                            : getAutoStatus(task) === 'completed'
+                              ? 'bg-[#f0f9f8] text-[#12b3a8]'
+                              : getAutoStatus(task) === 'not_started'
+                                ? 'bg-amber-50 text-amber-600'
+                                : getAutoStatus(task) === 'at_risk'
                                   ? 'bg-red-50 text-red-600'
                                   : 'bg-emerald-50 text-emerald-600'
                         }`}>
-                          {task.progress}%
+                          {task.isOverdue ? 'OVERDUE' : `${task.progress}%`}
                         </span>
                       </div>
                       {/* Secondary Info Layer */}
@@ -386,7 +439,7 @@ export default function GanttChart() {
                             )}
                             <div
                               className={`absolute h-4 rounded-full shadow-sm transition-all group ${getTaskColorClass(task)} ${
-                                task.isCritical ? "ring-2 ring-red-400/30" : ""
+                                task.isOverdue ? "ring-2 ring-red-500/50" : ""
                               }`}
                               style={{
                                 left: `${getTaskPosition(taskStart)}px`,
@@ -443,24 +496,7 @@ export default function GanttChart() {
       </div>
 
       {/* Summary Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        {[
-          { label: 'Dataset Size', val: filteredTasks.length, icon: Layers, color: 'text-[#12b3a8]' },
-          { label: 'Tasks Closed', val: filteredTasks.filter(t => getAutoStatus(t) === 'completed').length, icon: CheckCircle, color: 'text-emerald-500' },
-          { label: 'Work-In-Progress', val: filteredTasks.filter(t => getAutoStatus(t) === 'in_progress').length, icon: MousePointer2, color: 'text-[#0f3433]' },
-          { label: 'Critical Path', val: filteredTasks.filter(t => t.isCritical).length, icon: AlertTriangle, color: 'text-red-500' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] flex items-center gap-4">
-            <div className={`p-3 bg-gray-50 rounded-xl ${stat.color}`}>
-              <stat.icon className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-[#0f3433] leading-none mb-1">{stat.val}</p>
-              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+
 
       {/* Bottom Context Card */}
 

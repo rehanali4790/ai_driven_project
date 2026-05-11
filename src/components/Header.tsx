@@ -79,22 +79,19 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
   return (
     <header className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
-        {/* Left: title + subtitle + controls (wrap so nothing overlaps the toolbar) */}
-        <div className="min-w-0 flex-1 space-y-2">
-          <h2 className="text-2xl sm:text-[26px] font-bold text-[#0f3433] tracking-tight truncate" title={projectName}>
-            {projectName}
-          </h2>
-          <p className="text-[12px] sm:text-[13px] text-gray-400 font-bold uppercase tracking-wider">
+        <div className="min-w-0 flex-1 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+          <p className="text-[15px] sm:text-[16px] text-gray-500 font-bold uppercase tracking-wider shrink-0">
             Delivery Workspace •{" "}
             <span className="text-[#12b3a8]">{projectLocation || "Global Operations"}</span>
           </p>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1">
+
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {projects.length > 0 && (
               <select
                 value={activeId}
                 disabled={busy}
                 onChange={(e) => void handleActivate(e.target.value)}
-                className="min-w-0 max-w-full sm:max-w-md lg:max-w-xl flex-1 sm:flex-none text-[14px] border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50 font-semibold text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:border-[#12b3a8] outline-none transition-all cursor-pointer truncate"
+                className="min-w-[160px] max-w-xs text-[14px] border border-gray-200 rounded-xl px-3 py-2 bg-gray-50/50 font-semibold text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:border-[#12b3a8] outline-none transition-all cursor-pointer truncate"
                 title={projects.find((p) => p.id === activeId)?.name}
               >
                 {projects.map((p) => (
@@ -106,7 +103,7 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
             )}
 
             {canManageProjects && (
-              <div className="flex flex-wrap items-center gap-2">
+              <>
                 <button
                   type="button"
                   onClick={() => setShowProjModal(true)}
@@ -136,13 +133,13 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
                   <Calendar className="w-3.5 h-3.5 shrink-0" />
                   Work Week
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>
 
         {/* Right: search + actions — own row on smaller widths, never collapses into project row */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:justify-start xl:flex-nowrap shrink-0 xl:pt-1 border-t border-gray-50 pt-3 xl:border-t-0 xl:pt-0">
+        {/* <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:justify-start xl:flex-nowrap shrink-0 xl:pt-1 border-t border-gray-50 pt-3 xl:border-t-0 xl:pt-0">
           <div className="relative group w-full sm:w-auto sm:min-w-[220px] lg:min-w-[260px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-gray-400 group-focus-within:text-[#12b3a8] transition-colors" />
             <input
@@ -209,7 +206,7 @@ export default function Header({ projectName, projectLocation, onRefresh }: Head
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Modal - Themed */}

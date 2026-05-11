@@ -131,6 +131,8 @@ export interface GanttTask {
   dependencyLagByPredecessor?: Record<string, number>;
   isMilestone: boolean;
   isCritical: boolean;
+  /** True when today > end date and task is not completed */
+  isOverdue?: boolean;
   assigned: string;
   /** Single assignee resource id (merged global + project pool) */
   assignedResourceId?: string;

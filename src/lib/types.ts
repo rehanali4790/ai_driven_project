@@ -111,6 +111,7 @@ export interface GanttTask {
   dependencyLagByPredecessor?: Record<string, number>;
   isMilestone: boolean;
   isCritical: boolean;
+  isOverdue?: boolean;
   assigned: string;
   assignedResourceId?: string;
   parentActivity?: string;

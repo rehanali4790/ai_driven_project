@@ -638,7 +638,6 @@ export function computeDashboardStats(current: AppState): DashboardStats {
   const overdueTasks = current.tasks.filter(
     (task) => new Date(task.end) < new Date() && task.status !== "completed",
   ).length;
-  const criticalTasks = current.tasks.filter((task) => task.isCritical).length;
   const resourceUtilization = current.resources.length
     ? Math.round(
         current.resources.reduce((sum, resource) => sum + resource.allocated, 0) /
@@ -652,7 +651,7 @@ export function computeDashboardStats(current: AppState): DashboardStats {
     totalTasks,
     inProgress,
     overdueTasks,
-    criticalTasks,
+    criticalTasks: 0,
     resourceUtilization,
   };
 }
@@ -1013,14 +1012,39 @@ export function updateTask(
       throw new Error("Task not found.");
     }
     const previous = draft.tasks[idx];
+
+    const wantsToStart =
+      (updates.progress !== undefined && updates.progress > 0) ||
+      (updates.status !== undefined && updates.status !== "not_started");
+    if (wantsToStart && previous.dependencies?.length) {
+      const incompletePreds = previous.dependencies
+        .map((depId) => draft.tasks.find((t) => t.id === depId || t.activityId === depId || t.wbsNodeId === depId))
+        .filter((pred) => pred && pred.status !== "completed");
+      if (incompletePreds.length) {
+        const names = incompletePreds.map((p) => p!.name).join(", ");
+        throw new Error(`Cannot start this task — predecessor(s) not completed: ${names}`);
+      }
+    }
+
+    let newProgress = Math.max(0, Math.min(100, updates.progress ?? previous.progress));
+    let newStatus = (updates.status ?? previous.status) as TaskStatus;
+    if (updates.progress !== undefined && newProgress >= 100 && newStatus !== "completed") {
+      newStatus = "completed";
+    }
+    if (updates.status === "completed" && newProgress < 100) {
+      newProgress = 100;
+    }
+    if (updates.status !== undefined && updates.status !== "completed" && newProgress >= 100 && updates.progress === undefined) {
+      newProgress = previous.progress < 100 ? previous.progress : 0;
+    }
     const next: GanttTask = {
       ...previous,
       ...updates,
       id: previous.id,
       activityId: updates.activityId ?? previous.activityId,
       dependencies: updates.dependencies ?? previous.dependencies,
-      progress: Math.max(0, Math.min(100, updates.progress ?? previous.progress)),
-      status: (updates.status ?? previous.status) as TaskStatus,
+      progress: newProgress,
+      status: newStatus,
     };
     draft.tasks[idx] = next;
     syncTaskToWbs(next, draft.wbs);
