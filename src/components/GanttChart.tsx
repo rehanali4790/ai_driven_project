@@ -15,11 +15,12 @@ import {
   Minimize2
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
+import ProjectToolbar from './ProjectToolbar';
 
 type ZoomLevel = 'day' | 'week' | 'month' | 'quarter';
 
 export default function GanttChart() {
-  const { state, generateArtifacts } =
+  const { state, generateArtifacts, workspace } =
     useProjectData();
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('week');
   const [zoomScale, setZoomScale] = useState(100);
@@ -191,6 +192,8 @@ export default function GanttChart() {
 
   if (!state) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-8 p-1">
 
@@ -201,7 +204,7 @@ export default function GanttChart() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Chart</h1>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Chart{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Visual project timeline and resource allocation</p>
         </div>
 
@@ -231,6 +234,7 @@ export default function GanttChart() {
         
       </div>
 
+      <ProjectToolbar />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         {[

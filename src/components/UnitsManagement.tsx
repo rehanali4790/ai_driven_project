@@ -1,9 +1,10 @@
 import { FormEvent, useState } from "react";
 import { Plus, Ruler, Trash2 } from "lucide-react";
 import { useProjectData } from "@/context/ProjectDataContext";
+import ProjectToolbar from './ProjectToolbar';
 
 export default function UnitsManagement() {
-  const { state, error: ctxError, addInventoryUnit, removeInventoryUnit, userRole } = useProjectData();
+  const { state, error: ctxError, addInventoryUnit, removeInventoryUnit, userRole, workspace } = useProjectData();
   const [newUnit, setNewUnit] = useState("");
   const [localOk, setLocalOk] = useState<string | null>(null);
   const canEdit = userRole !== "viewer";
@@ -46,6 +47,8 @@ export default function UnitsManagement() {
 
   if (!state) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-6 p-1">
       <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]">
@@ -54,7 +57,7 @@ export default function UnitsManagement() {
             <Ruler className="w-6 h-6 text-[#12b3a8]" />
           </div>
           <div>
-            <h1 className="text-[26px] font-bold text-[#0f3433] tracking-tight">Measurement Units</h1>
+            <h1 className="text-[26px] font-bold text-[#0f3433] tracking-tight">Measurement Units{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
             <p className="text-sm text-gray-500 mt-1 max-w-2xl leading-relaxed">
               Add or remove units once; they appear everywhere you pick a unit —{" "}
               <span className="font-semibold text-[#0f3433]">Inventory</span> and{" "}
@@ -63,6 +66,8 @@ export default function UnitsManagement() {
           </div>
         </div>
       </div>
+
+      <ProjectToolbar />
 
       {ctxError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{ctxError}</div>

@@ -1,9 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Boxes, PackagePlus, Handshake, Search } from "lucide-react";
 import { useProjectData } from "@/context/ProjectDataContext";
+import ProjectToolbar from './ProjectToolbar';
 
 export default function InventoryManagement() {
-  const { state, upsertInventory, allocateInventory, userRole } = useProjectData();
+  const { state, upsertInventory, allocateInventory, userRole, workspace } = useProjectData();
   const canEdit = userRole !== "viewer";
 
   const inventories = state?.inventories ?? [];
@@ -123,14 +124,18 @@ export default function InventoryManagement() {
 
   if (!state) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-6">
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
-        <h1 className="text-2xl font-bold text-[#0f3433]">Inventory Management</h1>
+        <h1 className="text-2xl font-bold text-[#0f3433]">Inventory Management{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
         <p className="text-sm text-gray-500 mt-1">
           Add inventory stock, manage units, and allocate inventory to human resources against tasks.
         </p>
       </div>
+
+      <ProjectToolbar />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <form onSubmit={saveInventory} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">

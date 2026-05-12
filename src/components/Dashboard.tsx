@@ -12,15 +12,18 @@ import {
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 import { ViewType } from '@/lib/types';
+import ProjectToolbar from './ProjectToolbar';
 
 interface DashboardProps {
   onNavigate: (view: ViewType) => void;
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
-  const { state, dashboard } = useProjectData();
+  const { state, dashboard, workspace } = useProjectData();
 
   if (!state || !dashboard) return null;
+
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
 
   const stats = [
     {
@@ -74,7 +77,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Project Dashboard</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Project Dashboard{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Live project health driven by documents and AI analysis</p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -93,6 +96,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </button>
         </div>
       </div>
+
+      <ProjectToolbar />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

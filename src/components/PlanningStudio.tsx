@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { Plus, Layers, CalendarDays, Link2, AlertTriangle, Lock } from "lucide-react";
 import { useProjectData } from "@/context/ProjectDataContext";
 import type { TaskStatus } from "@/lib/types";
+import ProjectToolbar from './ProjectToolbar';
 
 export default function PlanningStudio() {
-  const { state, createPlannedTaskNode, updateTask, userRole } = useProjectData();
+  const { state, createPlannedTaskNode, updateTask, userRole, workspace } = useProjectData();
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
   const [isCreating, setIsCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canEdit = userRole !== "viewer";
@@ -145,11 +147,13 @@ export default function PlanningStudio() {
   return (
     <div className="page-typography space-y-6">
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
-        <h1 className="text-2xl font-bold text-[#0f3433]">Planning Studio</h1>
+        <h1 className="text-2xl font-bold text-[#0f3433]">Planning Studio{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
         <p className="text-sm text-gray-500 mt-1">
           Single unified task builder for both WBS hierarchy and Gantt scheduling.
         </p>
       </div>
+
+      <ProjectToolbar />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 p-4">

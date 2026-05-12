@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useProjectData } from "@/context/ProjectDataContext";
 import { TaskStatus } from "@/lib/types";
 import { Plus, Target, BarChart3, Edit3, Lock } from "lucide-react";
+import ProjectToolbar from './ProjectToolbar';
 
 const statusOptions: TaskStatus[] = ["not_started", "in_progress", "at_risk", "completed"];
 
@@ -87,6 +88,8 @@ export default function GanttEditor() {
 
   if (!state) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-8 p-1">
       {updateError && (
@@ -102,7 +105,7 @@ export default function GanttEditor() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Editor</h1>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Gantt Editor{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Fine-tune task schedules, assignments, and real-time progress</p>
         </div>
         {!canEdit && (
@@ -111,6 +114,8 @@ export default function GanttEditor() {
           </span>
         )}
       </div>
+
+      <ProjectToolbar />
 
       {/* Create Task Card - Themed Form */}
       <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 p-8">

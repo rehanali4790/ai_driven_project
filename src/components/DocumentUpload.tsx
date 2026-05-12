@@ -23,9 +23,11 @@ import {
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
 import { api, getDocumentPreviewUrl } from '@/lib/api';
+import ProjectToolbar from './ProjectToolbar';
 
 export default function DocumentUpload() {
-  const { state, uploadDocument, reprocessDocument, deleteDocument, generateArtifacts, resetWorkspace } = useProjectData();
+  const { state, uploadDocument, reprocessDocument, deleteDocument, generateArtifacts, resetWorkspace, workspace } = useProjectData();
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
   const [isDragging, setIsDragging] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,7 +126,7 @@ export default function DocumentUpload() {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Document Management</h1>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">Document Management{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Upload project source files for AI data extraction</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -155,6 +157,8 @@ export default function DocumentUpload() {
           </button>
         </div>
       </div>
+
+      <ProjectToolbar />
 
       {/* Processing Status Panel */}
       {(processingDocs.length > 0 || failedDocs.length > 0) && (

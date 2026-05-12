@@ -14,6 +14,7 @@ import UnitsManagement from "./components/UnitsManagement";
 import CalendarManagement from "./components/CalendarManagement";
 import AIAssistant from "./components/AIAssistant";
 import DocumentUpload from "./components/DocumentUpload";
+import ProjectToolbar from "./components/ProjectToolbar";
 import { ProjectDataProvider, useProjectData } from "./context/ProjectDataContext";
 import { ViewType } from "./lib/types";
 import "./App.css";

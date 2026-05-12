@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { Calendar, Clock, Plus, Trash2, Save, CalendarDays } from 'lucide-react';
 import { WorkingCalendar, CalendarException } from '@/lib/types';
 import { useProjectData } from '@/context/ProjectDataContext';
+import ProjectToolbar from './ProjectToolbar';
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
 import * as Popover from '@radix-ui/react-popover';
@@ -139,12 +140,14 @@ export default function CalendarManagement() {
 
   if (!state || !workspace || !editableCalendar) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0f3433]">Calendar Management</h1>
+          <h1 className="text-2xl font-bold text-[#0f3433]">Calendar Management{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-sm text-gray-500 mt-1">
             Configure working time rules used by Gantt scheduling and resource allocations
           </p>
@@ -171,6 +174,9 @@ export default function CalendarManagement() {
           </button>
         </div>
       </div>
+
+      <ProjectToolbar />
+
       {saveMessage && <p className="text-sm text-[#0f3433]">{saveMessage}</p>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

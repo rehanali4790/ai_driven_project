@@ -11,10 +11,11 @@ import {
   Save
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
+import ProjectToolbar from './ProjectToolbar';
 
 export default function ProjectOverview() {
   const [isEditing, setIsEditing] = useState(false);
-  const { state, dashboard } = useProjectData();
+  const { state, dashboard, workspace } = useProjectData();
   const [draft, setDraft] = useState({
     name: state?.project.name ?? '',
     description: state?.project.description ?? '',
@@ -41,6 +42,8 @@ export default function ProjectOverview() {
 
   if (!state || !dashboard) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   const projectData = isEditing
     ? { ...state.project, ...draft }
     : state.project;
@@ -51,7 +54,7 @@ export default function ProjectOverview() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">
-            Project Overview
+            Project Overview{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}
           </h1>
           <p className="text-gray-500 text-md mt-1">Detailed lifecycle management and analytics</p>
         </div>
@@ -78,6 +81,8 @@ export default function ProjectOverview() {
           )}
         </button>
       </div>
+
+      <ProjectToolbar />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content Area */}

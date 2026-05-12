@@ -18,6 +18,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
+import ProjectToolbar from './ProjectToolbar';
 
 interface Message {
   id: string;
@@ -58,7 +59,8 @@ export default function AIAssistant() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { askAi, transcribeAudio, synthesizeSpeech } = useProjectData();
+  const { askAi, transcribeAudio, synthesizeSpeech, workspace } = useProjectData();
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
@@ -147,7 +149,7 @@ export default function AIAssistant() {
       {/* Top Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">AI Assistant</h1>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">AI Assistant{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Conversational project intelligence powered by OpenAI</p>
         </div>
         <div className="flex items-center gap-3">
@@ -165,8 +167,10 @@ export default function AIAssistant() {
         </div>
       </div>
 
+      <ProjectToolbar  />
+
       {/* Main Chat Area */}
-      <div className="flex-1 bg-white rounded-[32px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col overflow-hidden">
+      <div className="flex-1 mt-4 bg-white rounded-[32px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col overflow-hidden">
         {/* Assistant Status Bar */}
         <div className="px-6 py-4 border-b border-gray-50 bg-[#0f3433] flex items-center justify-between">
           <div className="flex items-center gap-4">

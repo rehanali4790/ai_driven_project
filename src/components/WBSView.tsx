@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useProjectData } from "@/context/ProjectDataContext";
+import type { WBSNode } from "@/lib/types";
+import ProjectToolbar from "./ProjectToolbar";
 import {
   ChevronRight, ChevronDown, Search, GitBranch,
   CheckCircle, Clock, AlertTriangle, Sparkles,
@@ -354,15 +357,55 @@ function DetailPanel({node,progVal}) {
   );
 }
 
+/* ── helpers ─────────────────────────────────────────────── */
+function countNodes(node: any): number {
+  let c = 1;
+  (node.children ?? []).forEach((ch: any) => { c += countNodes(ch); });
+  return c;
+}
+function countByStatus(node: any, st: string): number {
+  let c = node.status === st ? 1 : 0;
+  (node.children ?? []).forEach((ch: any) => { c += countByStatus(ch, st); });
+  return c;
+}
+function sumCosts(node: any, costsMap: Record<string, number>): number {
+  let total = costsMap[node.id] ?? 0;
+  (node.children ?? []).forEach((ch: any) => { total += sumCosts(ch, costsMap); });
+  return total;
+}
+
 /* ── MAIN ────────────────────────────────────────────────── */
 export default function WBSView() {
-  const [expanded,setExpanded]   = useState(new Set(["1","1.1","1.2"]));
+  const { state, workspace } = useProjectData();
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
+  const wbsRoot = useMemo(() => {
+    if (state?.wbs) return state.wbs as any;
+    return ROOT;
+  }, [state?.wbs]);
+
+  const stats = useMemo(() => {
+    const total = countNodes(wbsRoot);
+    const completed = countByStatus(wbsRoot, "completed");
+    const atRisk = countByStatus(wbsRoot, "at_risk");
+    const budget = sumCosts(wbsRoot, COSTS);
+    return { total, completed, atRisk, budget };
+  }, [wbsRoot]);
+
+  const [expanded,setExpanded]   = useState<Set<string>>(new Set([wbsRoot.id]));
   const [selected,setSelected]   = useState(null);
   const [resModal,setResModal]   = useState(null);
   const [progModal,setProgModal] = useState(null);
   const [search,setSearch]       = useState("");
   const [generating,setGen]      = useState(false);
   const [overrides,setOverrides] = useState({});
+
+  useEffect(() => {
+    setExpanded(new Set([wbsRoot.id]));
+    setSelected(null);
+    setOverrides({});
+    setSearch("");
+  }, [wbsRoot.id]);
 
   const toggle = id => {
     const s = new Set(expanded);
@@ -387,7 +430,7 @@ export default function WBSView() {
     return rows;
   };
 
-  const rootProg = overrides["1"]??ROOT.progress;
+  const rootProg = overrides[wbsRoot.id]??wbsRoot.progress;
 
   return (
     <div style={{fontFamily:FONT,padding:"0 2px",color:C.navy}}>
@@ -395,7 +438,7 @@ export default function WBSView() {
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:22,flexWrap:"wrap",gap:12}}>
         <div>
-          <h1 style={{margin:0,fontSize:24,fontWeight:800,color:C.navy,letterSpacing:"-0.02em",fontFamily:FONT}}>Work Breakdown Structure</h1>
+          <h1 style={{margin:0,fontSize:24,fontWeight:800,color:C.navy,letterSpacing:"-0.02em",fontFamily:FONT}}>Work Breakdown Structure{activeProjectName && <> | <span style={{color:"#12b3a8"}}>{activeProjectName}</span></>}</h1>
           <p style={{margin:"5px 0 0",fontSize:13,color:C.g400,fontWeight:500}}>Hierarchical task decomposition · AI-parsed from project documents</p>
         </div>
         <button
@@ -404,6 +447,10 @@ export default function WBSView() {
         >
           <Sparkles size={15} strokeWidth={2}/>{generating?"Regenerating…":"AI Generate WBS"}
         </button>
+      </div>
+
+      <div style={{marginBottom: 16}}>
+        <ProjectToolbar />
       </div>
 
       {/* AI banner */}
@@ -421,7 +468,7 @@ export default function WBSView() {
 
       {/* Stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
-        {[{l:"Total Nodes",v:"17",color:C.teal},{l:"Completed",v:"4",color:C.emerald},{l:"At Risk",v:"2",color:C.red},{l:"Budget (PKR)",v:"48.5M",color:C.amber}].map((s,i)=>(
+        {[{l:"Total Nodes",v:String(stats.total),color:C.teal},{l:"Completed",v:String(stats.completed),color:C.emerald},{l:"At Risk",v:String(stats.atRisk),color:C.red},{l:"Budget (PKR)",v:stats.budget>0?`${(stats.budget/1e6).toFixed(1)}M`:"—",color:C.amber}].map((s,i)=>(
           <div key={i} style={{background:C.white,border:`1px solid ${C.g100}`,borderRadius:13,padding:"14px 18px",display:"flex",alignItems:"center",gap:12}}>
             <div style={{width:36,height:36,borderRadius:10,background:`${s.color}1a`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
               <div style={{width:10,height:10,borderRadius:"50%",background:s.color}}/>
@@ -470,7 +517,7 @@ export default function WBSView() {
                 ))}
               </tr>
             </thead>
-            <tbody>{renderRows(ROOT)}</tbody>
+            <tbody>{renderRows(wbsRoot)}</tbody>
           </table>
         </div>
 
@@ -478,7 +525,7 @@ export default function WBSView() {
         <div style={{padding:"10px 20px",borderTop:`1px solid ${C.g50}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:C.teal}}/>
-            <span style={{fontSize:12,color:C.g400,fontWeight:500,fontFamily:FONT}}>17 nodes · real-time sync</span>
+            <span style={{fontSize:12,color:C.g400,fontWeight:500,fontFamily:FONT}}>{stats.total} nodes · real-time sync</span>
           </div>
           <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
             {Object.entries(ST).map(([k,s])=>(

@@ -13,6 +13,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useProjectData } from '@/context/ProjectDataContext';
+import ProjectToolbar from './ProjectToolbar';
 
 type ResourceViewMode = 'human' | 'equipment' | 'material';
 
@@ -68,7 +69,7 @@ function createResourceDraft(type: 'person' | 'equipment' | 'material') {
 }
 
 export default function ResourceManagement({ resourceView = 'human' }: ResourceManagementProps) {
-  const { state, upsertResource, userRole } = useProjectData();
+  const { state, upsertResource, userRole, workspace } = useProjectData();
   const [searchTerm, setSearchTerm] = useState('');
   const [scopeTab, setScopeTab] = useState<'all' | 'global' | 'project'>('all');
   const forcedType = resourceTypeByView[resourceView];
@@ -152,12 +153,14 @@ export default function ResourceManagement({ resourceView = 'human' }: ResourceM
 
   if (!state) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-8 p-1">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">{heading.title}</h1>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">{heading.title}{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">{heading.subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -174,6 +177,8 @@ export default function ResourceManagement({ resourceView = 'human' }: ResourceM
           </button>
         </div>
       </div>
+
+      <ProjectToolbar />
 
       {/* Admin Form - Reference Style */}
       {showForm && (

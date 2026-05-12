@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { useProjectData } from "@/context/ProjectDataContext";
 import { TaskStatus, WBSNode } from "@/lib/types";
 import { PlusCircle, Edit3, Layers, BarChart3, ChevronDown } from "lucide-react";
+import ProjectToolbar from './ProjectToolbar';
 
 const statusOptions: TaskStatus[] = ["not_started", "in_progress", "at_risk", "completed"];
 
@@ -12,7 +13,7 @@ function flatten(node: WBSNode, acc: WBSNode[] = []) {
 }
 
 export default function WBSEditor() {
-  const { state, updateWbsNode, createWbsNode, userRole } = useProjectData();
+  const { state, updateWbsNode, createWbsNode, userRole, workspace } = useProjectData();
   const [selectedParent, setSelectedParent] = useState("");
   const [parentSearch, setParentSearch] = useState("");
   const [showParentDropdown, setShowParentDropdown] = useState(false);
@@ -77,12 +78,14 @@ export default function WBSEditor() {
 
   if (!state?.wbs) return null;
 
+  const activeProjectName = workspace?.projectList?.find((p: any) => p.id === workspace.activeProjectId)?.name;
+
   return (
     <div className="page-typography space-y-8 p-1">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">WBS Editor</h1>
+          <h1 className="text-[28px] font-bold text-[#0f3433] tracking-tight">WBS Editor{activeProjectName && <> | <span className="text-[#12b3a8]">{activeProjectName}</span></>}</h1>
           <p className="text-gray-500 text-sm mt-1 font-medium">Manual override and node management for project hierarchy</p>
         </div>
         {!canEdit && (
@@ -91,6 +94,8 @@ export default function WBSEditor() {
           </span>
         )}
       </div>
+
+      <ProjectToolbar />
 
       {/* Create Node Form - Themed Card */}
       <div className="bg-white rounded-[24px] shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] border border-gray-100 p-8">
