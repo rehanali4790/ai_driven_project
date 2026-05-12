@@ -78,12 +78,12 @@ export default function UnitsManagement() {
           onSubmit={onAdd}
           className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]"
         >
-          <h2 className="text-xs font-bold uppercase tracking-widest text-[#0f3433] flex items-center gap-2">
+          <h2 className="text-md font-bold uppercase tracking-widest text-[#0f3433] flex items-center gap-2">
             <Plus className="w-4 h-4 text-[#12b3a8]" />
             Add unit
           </h2>
           <div>
-            <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 ml-0.5">
+            <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400 ml-0.5">
               Unit label
             </label>
             <input
@@ -94,7 +94,7 @@ export default function UnitsManagement() {
               className="mt-1.5 w-full px-4 py-2.5 rounded-xl bg-gray-50 border-none text-sm font-medium text-[#0f3433] focus:ring-2 focus:ring-[#12b3a8]/20 focus:bg-white outline-none disabled:opacity-50"
               maxLength={48}
             />
-            <p className="text-[11px] text-gray-400 mt-2">Duplicates are ignored (case-insensitive).</p>
+            <p className="text-[13px] text-gray-400 mt-2">Duplicates are ignored (case-insensitive).</p>
           </div>
           <button
             type="submit"

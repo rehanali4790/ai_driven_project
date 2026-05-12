@@ -466,7 +466,7 @@ export default function WBSView() {
             <thead>
               <tr style={{background:C.g50,borderBottom:`1px solid ${C.g100}`}}>
                 {["Hierarchy Code","Deliverable Name","Status","Progress","Category","Estimated Cost","Resources"].map((h,i)=>(
-                  <th key={i} style={{padding:"11px 16px",textAlign:"left",fontSize:10,fontWeight:700,color:C.g400,textTransform:"uppercase",letterSpacing:"0.11em",whiteSpace:"nowrap",fontFamily:FONT}}>{h}</th>
+                  <th key={i} style={{padding:"11px 16px",textAlign:"left",fontSize:14,fontWeight:700,color:"#030712",textTransform:"uppercase",letterSpacing:"0.07em",whiteSpace:"nowrap",fontFamily:FONT}}>{h}</th>
                 ))}
               </tr>
             </thead>

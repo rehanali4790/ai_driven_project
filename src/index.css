@@ -33,6 +33,35 @@ img {
   object-position: top;
 }
 
+.rdp-root {
+  --rdp-accent-color: #12b3a8;
+  --rdp-accent-background-color: #f0f9f8;
+}
+
+.rdp-root .rdp-dropdowns {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.rdp-root .rdp-dropdown {
+  appearance: auto;
+  padding: 2px 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0f3433;
+  background: white;
+  cursor: pointer;
+}
+
+.rdp-root .rdp-dropdown:focus {
+  outline: none;
+  border-color: #12b3a8;
+  box-shadow: 0 0 0 2px rgba(18, 179, 168, 0.2);
+}
+
 .fixed {
   position: fixed;
 }

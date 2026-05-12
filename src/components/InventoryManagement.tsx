@@ -134,13 +134,13 @@ export default function InventoryManagement() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <form onSubmit={saveInventory} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#0f3433] flex items-center gap-2">
+          <h2 className="text-md font-bold uppercase tracking-widest text-[#0f3433] flex items-center gap-2">
             <PackagePlus className="w-4 h-4 text-[#12b3a8]" />
             Add Inventory
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Inventory Name</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Inventory Name</label>
               <input
                 value={inventoryDraft.name}
                 onChange={(e) => setInventoryDraft((prev) => ({ ...prev, name: e.target.value }))}
@@ -149,7 +149,7 @@ export default function InventoryManagement() {
               />
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Category</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Category</label>
               <select
                 value={inventoryDraft.category}
                 onChange={(e) =>
@@ -165,7 +165,7 @@ export default function InventoryManagement() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Quantity</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Quantity</label>
               <input
                 type="number"
                 min={1}
@@ -175,7 +175,7 @@ export default function InventoryManagement() {
               />
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Single Unit Price</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Single Unit Price</label>
               <input
                 type="number"
                 min={0}
@@ -186,7 +186,7 @@ export default function InventoryManagement() {
               />
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Bulk Price</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Bulk Price</label>
               <input
                 type="number"
                 min={0}
@@ -197,7 +197,7 @@ export default function InventoryManagement() {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Unit</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Unit</label>
               <select
                 value={
                   unitChoices.find((u) => u.toLowerCase() === inventoryDraft.unit.trim().toLowerCase()) ??
@@ -205,7 +205,7 @@ export default function InventoryManagement() {
                   "unit"
                 }
                 onChange={(e) => setInventoryDraft((prev) => ({ ...prev, unit: e.target.value }))}
-                className="mt-1 w-full max-w-md px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 text-sm"
+                className="mt-1 w-full gap-1 max-w-md px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 text-sm"
               >
                 {unitChoices.map((unit) => (
                   <option key={unit} value={unit}>
@@ -213,7 +213,7 @@ export default function InventoryManagement() {
                   </option>
                 ))}
               </select>
-              <p className="mt-2 text-[11px] text-gray-500 leading-relaxed">
+              <p className="mt-2 text-[13px] text-gray-500 leading-relaxed">
                 Add or remove units globally from sidebar: <strong className="text-[#0f3433]">Measurement Units</strong>.
               </p>
             </div>
@@ -228,13 +228,13 @@ export default function InventoryManagement() {
         </form>
 
         <form onSubmit={saveAllocation} className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#0f3433] flex items-center gap-2">
+          <h2 className="text-md font-bold uppercase tracking-widest text-[#0f3433] flex items-center gap-2">
             <Handshake className="w-4 h-4 text-[#12b3a8]" />
             Allocate Inventory
           </h2>
           <div className="space-y-4">
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Inventory</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Inventory</label>
               <select
                 value={allocationDraft.inventoryId}
                 onChange={(e) => setAllocationDraft((prev) => ({ ...prev, inventoryId: e.target.value }))}
@@ -247,12 +247,12 @@ export default function InventoryManagement() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1">
                 Available Qty: {selectedInventory ? `${selectedInventory.quantity} ${selectedInventory.unit}` : "N/A"}
               </p>
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Human Resource</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Human Resource</label>
               <div className="relative mt-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -276,7 +276,7 @@ export default function InventoryManagement() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Task</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Task</label>
               <select
                 value={allocationDraft.taskId}
                 onChange={(e) => setAllocationDraft((prev) => ({ ...prev, taskId: e.target.value }))}
@@ -291,7 +291,7 @@ export default function InventoryManagement() {
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400">Allocation Quantity</label>
+              <label className="text-[12px] font-extrabold uppercase tracking-widest text-gray-400">Allocation Quantity</label>
               <input
                 type="number"
                 min={1}
@@ -324,12 +324,12 @@ export default function InventoryManagement() {
           <table className="w-full text-left">
             <thead className="bg-gray-50/70">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Inventory</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Category</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Available Qty</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Single Price</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Bulk Price</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Unit</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Inventory</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Category</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Available Qty</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Single Price</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Bulk Price</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Unit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -347,7 +347,7 @@ export default function InventoryManagement() {
               ))}
               {!inventories.length && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-sm text-gray-500">
+                  <td colSpan={6} className="px-4 py-6 text-md text-gray-500">
                     No inventory items found.
                   </td>
                 </tr>
@@ -365,11 +365,11 @@ export default function InventoryManagement() {
           <table className="w-full text-left">
             <thead className="bg-gray-50/70">
               <tr>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Inventory</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Human Resource</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Task</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Qty</th>
-                <th className="px-4 py-3 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Date</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Inventory</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Human Resource</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Task</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Qty</th>
+                <th className="px-4 py-3 text-sm font-extrabold text-gray-950 uppercase tracking-widest">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -384,7 +384,7 @@ export default function InventoryManagement() {
               ))}
               {!inventoryAllocations.length && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-sm text-gray-500">
+                  <td colSpan={5} className="px-4 py-6 text-md text-gray-500">
                     No inventory allocations found.
                   </td>
                 </tr>

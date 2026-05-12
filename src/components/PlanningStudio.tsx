@@ -316,13 +316,13 @@ export default function PlanningStudio() {
           <table className="w-full">
             <thead className="bg-gray-50/70">
               <tr>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">WBS</th>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">Task</th>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">Schedule</th>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">Predecessors</th>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">Progress</th>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">Status</th>
-                <th className="text-left text-[10px] uppercase tracking-widest text-gray-400 px-4 py-3">Resource</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">WBS</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">Task</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">Schedule</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">Predecessors</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">Progress</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">Status</th>
+                <th className="text-left text-sm uppercase tracking-widest text-gray-950 px-4 py-3">Resource</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

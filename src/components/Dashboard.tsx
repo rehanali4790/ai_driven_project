@@ -31,6 +31,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       icon: Activity,
       bg: 'bg-teal-50 border-yellow-500',
       iconColor: 'text-[#12b3a8]',
+      trendBg: 'bg-teal-50 text-[#12b3a8]',
     },
     {
       label: 'Tasks Completed',
@@ -40,6 +41,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       icon: CheckCircle,
       bg: 'bg-blue-50',
       iconColor: 'text-blue-500',
+      trendBg: 'bg-blue-50 text-blue-600',
     },
     {
       label: 'Resource Utilization',
@@ -49,6 +51,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       icon: Database,
       bg: 'bg-violet-50',
       iconColor: 'text-violet-500',
+      trendBg: 'bg-violet-50 text-violet-600',
     },
     {
       label: 'Overdue Tasks',
@@ -58,12 +61,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       icon: AlertTriangle,
       bg: dashboard.overdueTasks === 0 ? 'bg-emerald-50' : 'bg-red-50',
       iconColor: dashboard.overdueTasks === 0 ? 'text-emerald-500' : 'text-red-500',
+      trendBg: dashboard.overdueTasks === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500',
     },
   ];
 
   const topResources = [...state.resources]
-    .sort((a, b) => b.allocated - a.allocated)
-    .slice(0, 4);
+    .sort((a, b) => b.allocated - a.allocated);
 
   return (
     <div className="page-typography space-y-6 p-1">
@@ -107,9 +110,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
               <p className="text-xs font-medium text-gray-400 mb-1">{stat.label}</p>
               <p className="text-[22px] font-semibold text-gray-900 leading-none mb-2">{stat.value}</p>
-              <div className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                stat.positive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'
-              }`}>
+              <div className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${stat.trendBg}`}>
                 {stat.positive
                   ? <TrendingUp className="w-3 h-3" />
                   : <TrendingDown className="w-3 h-3" />}
@@ -140,7 +141,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               LIVE
             </span>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[296px] overflow-y-auto pr-3">
             {state.insights.map((insight) => (
               <div
                 key={insight.id}
@@ -181,7 +182,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               View all
             </button>
           </div>
-          <div className="space-y-5">
+          <div className="space-y-5 max-h-[248px] overflow-y-auto pr-3">
             {topResources.map((resource) => {
               const isHigh = resource.allocated >= 90;
               const isMid = resource.allocated >= 70;
@@ -229,7 +230,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               Timeline <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-[264px] overflow-y-auto pr-3">
             {state.milestones.map((milestone) => (
               <div
                 key={milestone.id}
@@ -249,7 +250,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                   milestone.status === 'completed'
                     ? 'bg-emerald-50 text-emerald-600'
                     : milestone.status === 'in_progress'
-                      ? 'bg-[#e8f8f7] text-[#12b3a8]'
+                      ? 'bg-blue-50 text-[#12b3a8]'
                       : 'bg-gray-100 text-gray-400'
                 }`}>
                   {milestone.status === 'in_progress' ? 'In Progress' :
@@ -276,7 +277,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               Last sync: {new Date(state.lastUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[264px] overflow-y-auto pr-3">
             {state.activities.map((activity) => (
               <div key={activity.id} className="flex items-start gap-3">
                 <div className="w-7 h-7 rounded-lg bg-[#f0fafa] border border-teal-100 flex items-center justify-center text-[#12b3a8] text-[11px] font-semibold shrink-0">

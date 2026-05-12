@@ -1,15 +1,52 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Clock, Plus, Trash2, Save } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { Calendar, Clock, Plus, Trash2, Save, CalendarDays } from 'lucide-react';
 import { WorkingCalendar, CalendarException } from '@/lib/types';
 import { useProjectData } from '@/context/ProjectDataContext';
+import { DayPicker } from 'react-day-picker';
+import 'react-day-picker/dist/style.css';
+import * as Popover from '@radix-ui/react-popover';
 
 export default function CalendarManagement() {
   const { workspace, state, upsertCalendar, userRole } = useProjectData();
   const [editableCalendar, setEditableCalendar] = useState<WorkingCalendar | null>(null);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
   const [newHolidayDate, setNewHolidayDate] = useState('');
+  const [displayDate, setDisplayDate] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [newHolidayType, setNewHolidayType] = useState<'holiday' | 'override'>('holiday');
   const [newHolidayHours, setNewHolidayHours] = useState<number>(0);
+
+  const handleDateInputChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    let formatted = '';
+    if (digits.length <= 2) formatted = digits;
+    else if (digits.length <= 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    else formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+    setDisplayDate(formatted);
+
+    if (digits.length === 8) {
+      const day = parseInt(digits.slice(0, 2), 10);
+      const month = parseInt(digits.slice(2, 4), 10);
+      const year = parseInt(digits.slice(4, 8), 10);
+      if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900) {
+        const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        setNewHolidayDate(iso);
+        return;
+      }
+    }
+    if (digits.length < 8) setNewHolidayDate('');
+  };
+
+  const handleDaySelect = (day: Date | undefined) => {
+    if (!day) return;
+    const d = String(day.getDate()).padStart(2, '0');
+    const m = String(day.getMonth() + 1).padStart(2, '0');
+    const y = day.getFullYear();
+    setDisplayDate(`${d}/${m}/${y}`);
+    setNewHolidayDate(`${y}-${m}-${d}`);
+    setCalendarOpen(false);
+  };
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
@@ -72,6 +109,7 @@ export default function CalendarManagement() {
       .sort((a, b) => a.date.localeCompare(b.date));
     setEditableCalendar({ ...editableCalendar, exceptions: nextExceptions });
     setNewHolidayDate('');
+    setDisplayDate('');
     setNewHolidayHours(0);
     setSaveMessage(null);
   };
@@ -198,13 +236,46 @@ export default function CalendarManagement() {
             </label>
             
             <div className="space-y-3">
-              <input
-                type="date"
-                disabled={!canEditCalendar}
-                value={newHolidayDate}
-                onChange={(e) => setNewHolidayDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#12b3a8]"
-              />
+              <Popover.Root open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    disabled={!canEditCalendar}
+                    value={displayDate}
+                    onChange={(e) => handleDateInputChange(e.target.value)}
+                    placeholder="dd/mm/yyyy"
+                    maxLength={10}
+                    className="w-full px-4 py-2 pr-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#12b3a8]"
+                  />
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      disabled={!canEditCalendar}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-[#12b3a8] transition-colors disabled:opacity-50"
+                    >
+                      <CalendarDays className="w-5 h-5" />
+                    </button>
+                  </Popover.Trigger>
+                </div>
+                <Popover.Portal>
+                  <Popover.Content
+                    className="z-50 bg-white rounded-xl border border-gray-200 shadow-lg p-3"
+                    sideOffset={4}
+                    align="start"
+                  >
+                    <DayPicker
+                      mode="single"
+                      captionLayout="dropdown"
+                      fromYear={2000}
+                      toYear={2040}
+                      selected={newHolidayDate ? new Date(newHolidayDate + 'T00:00:00') : undefined}
+                      onSelect={handleDaySelect}
+                      showOutsideDays
+                      fixedWeeks
+                    />
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
               
               <select
                 disabled={!canEditCalendar}
@@ -259,7 +330,7 @@ export default function CalendarManagement() {
                   >
                     <div>
                       <p className="text-sm font-medium text-gray-700">
-                        {new Date(exception.date).toLocaleDateString('en-US', {
+                        {new Date(exception.date + 'T00:00:00').toLocaleDateString('en-GB', {
                           weekday: 'short',
                           year: 'numeric',
                           month: 'short',

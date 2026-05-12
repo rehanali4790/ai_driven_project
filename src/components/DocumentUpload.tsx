@@ -250,10 +250,10 @@ export default function DocumentUpload() {
             <table className="w-full text-left">
               <thead className="bg-gray-50/50">
                 <tr>
-                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Filename</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Format</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                  <th className="px-6 py-4 text-sm font-bold text-gray-950 uppercase tracking-wider">Filename</th>
+                  <th className="px-6 py-4 text-sm font-bold text-gray-950 uppercase tracking-wider">Format</th>
+                  <th className="px-6 py-4 text-sm font-bold text-gray-950 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-sm font-bold text-gray-950 uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
